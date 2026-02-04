@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <title>Contract de prestări servicii</title>
+  <style>
+    @page { size: A4; margin: 25mm; }
+    body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.4; max-width: 210mm; margin: 0 auto; padding: 0; color: #222; box-sizing: border-box; }
+    body * { box-sizing: border-box; }
+    h1 { font-size: 14pt; text-align: center; margin-bottom: 8mm; padding-top: 0; }
+    h2 { font-size: 12pt; margin-top: 6mm; margin-bottom: 3mm; }
+    p { margin: 2mm 0; }
+    .underline { border-bottom: 1px solid #222; display: inline-block; min-width: 80px; }
+    .signature-block { margin-top: 10mm; display: flex; justify-content: space-between; gap: 20mm; }
+    .signature-block > div { flex: 1; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>CONTRACT DE PRESTĂRI SERVICII</h1>
+  <p><strong>Nr. {{contractNr}} / Data {{contractData}}</strong></p>
+
+  <h2>I. PĂRȚILE CONTRACTANTE</h2>
+  <p><strong>1. PRESTATOR:</strong> {{prestatorNume}}, cu sediul social în {{prestatorSediu}}, înregistrată la Registrul Comerțului sub nr. {{prestatorRegCom}}, CUI {{prestatorCUI}}, cont nr. {{prestatorCont}} deschis la {{prestatorBanca}}, reprezentată prin dl. {{prestatorReprezentant}}.</p>
+  <p><strong>2. BENEFICIAR:</strong> {{beneficiarNume}}, cu sediul social în {{beneficiarSediu}}, înregistrată la Registrul Comerțului sub nr. {{beneficiarRegCom}}, CUI {{beneficiarCUI}}, cont nr. {{beneficiarCont}} deschis la {{beneficiarBanca}}, reprezentată prin {{beneficiarReprezentant}}.</p>
+
+  <h2>II. OBIECTUL CONTRACTULUI</h2>
+  <p>Prestatorul va asigura Beneficiarului următoarele servicii:</p>
+  <p><strong>Înregistrări contabile:</strong> Efectuarea acestora conform legislației în vigoare, începând cu luna {{lunaInceput}}, anul {{anulInceput}}.</p>
+  <p><strong>Raportări fiscale:</strong> Întocmirea și depunerea declarațiilor lunare privind impozitele, taxele (TVA, buget de stat, asigurări sociale) și a bilanțului contabil.</p>
+  <p><strong>Registre:</strong> Completarea tuturor registrelor contabile obligatorii.</p>
+  <p><strong>HR și Salarizare:</strong> Întocmirea statelor de plată lunare, a fișelor fiscale și a declarațiilor privind evidența nominală a asiguraților.</p>
+  <p><strong>Consultanță și Asistență:</strong> Furnizarea de propuneri pentru aplicarea reglementărilor legale și asistență în caz de control.</p>
+
+  <h2>III. DURATA ȘI PREȚUL</h2>
+  <p><strong>Durata:</strong> Contractul se încheie pe perioadă nedeterminată, intrând în vigoare la data de {{dataIntrareVigoare}}.</p>
+  <p><strong>Prețul:</strong> Echivalentul în lei al sumei de {{pretLunar}} lunar.</p>
+  <p><strong>Plata:</strong> Se face în termen de 10 zile de la emiterea facturii.</p>
+  <p><strong>Modalitate:</strong> Cash sau virament în contul: RO22INGB0000999904034454, deschis la ING Bank.</p>
+  <p><strong>Penalități:</strong> 0.1% pe zi de întârziere.</p>
+
+  <h2>IV. OBLIGAȚIILE PRINCIPALE</h2>
+  <p><strong>Prestator:</strong> Să respecte termenele legale și să păstreze confidențialitatea informațiilor.</p>
+  <p><strong>Beneficiar:</strong> Să pună la dispoziție documentele contabile până la data de 10 a lunii următoare. În caz contrar, termenele de depunere ale Prestatorului se decalează corespunzător.</p>
+
+  <h2>V. ÎNCETAREA CONTRACTULUI</h2>
+  <p>Contractul încetează prin:</p>
+  <ul>
+    <li>Acordul părților (scris).</li>
+    <li>Reziliere unilaterală cu un preaviz de 30 de zile.</li>
+    <li>Neplata serviciilor pe o perioadă de 3 luni.</li>
+    <li>Dizolvare, faliment sau forță majoră (&gt;45 zile).</li>
+  </ul>
+
+  <h2>VI. LITIGII ȘI DISPOZIȚII FINALE</h2>
+  <p>Litigiile se soluționează amiabil sau prin Curtea de Arbitraj de pe lângă Camera de Comerț și Industrie a României. Contractul poate fi modificat doar prin act adițional.</p>
+
+  <div class="signature-block">
+    <div>
+      <p><strong>PRESTATOR</strong></p>
+      <p>________________</p>
+    </div>
+    <div>
+      <p><strong>BENEFICIAR</strong></p>
+      <p>________________</p>
+    </div>
+  </div>
+</body>
+</html>

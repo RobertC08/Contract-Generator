@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+model ContractTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  content   String
+  version   Int
+  createdAt DateTime @default(now())
+  contracts Contract[]
+}
+
+model Contract {
+  id          String           @id @default(cuid())
+  templateId  String
+  template    ContractTemplate @relation(fields: [templateId], references: [id])
+  variables   Json
+  pdfUrl      String?
+  createdAt   DateTime         @default(now())
+}
