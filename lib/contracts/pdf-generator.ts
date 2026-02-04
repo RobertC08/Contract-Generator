@@ -34,7 +34,7 @@ async function generatePdfLocal(html: string): Promise<Buffer> {
 }
 
 async function generatePdfVercel(html: string): Promise<Buffer> {
-  const chromium = await import("@sparticuz/chromium");
+  const chromium = await import("@sparticuz/chromium-min");
   const puppeteer = await import("puppeteer-core");
   const browser = await puppeteer.default.launch({
     args: chromium.default.args,
