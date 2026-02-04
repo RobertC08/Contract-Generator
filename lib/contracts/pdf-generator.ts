@@ -1,4 +1,4 @@
-import puppeteer from "puppeteer";
+const isVercel = process.env.VERCEL === "1";
 
 const launchArgs = [
   "--no-sandbox",
@@ -11,25 +11,54 @@ const launchArgs = [
 ];
 
 export async function generatePdf(html: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({
+  if (isVercel) {
+    return generatePdfVercel(html);
+  }
+  return generatePdfLocal(html);
+}
+
+async function generatePdfLocal(html: string): Promise<Buffer> {
+  const puppeteer = await import("puppeteer");
+  const browser = await puppeteer.default.launch({
     headless: true,
     args: launchArgs,
   });
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "domcontentloaded" });
-    const pdfBytes = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: {
-        top: "25mm",
-        right: "25mm",
-        bottom: "25mm",
-        left: "25mm",
-      },
-    });
+    const pdfBytes = await page.pdf(pdfOptions);
     return Buffer.from(pdfBytes);
   } finally {
     await browser.close();
   }
 }
+
+async function generatePdfVercel(html: string): Promise<Buffer> {
+  const chromium = await import("@sparticuz/chromium");
+  const puppeteer = await import("puppeteer-core");
+  const browser = await puppeteer.default.launch({
+    args: chromium.default.args,
+    defaultViewport: chromium.default.defaultViewport,
+    executablePath: await chromium.default.executablePath(),
+    headless: chromium.default.headless,
+  });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "domcontentloaded" });
+    const pdfBytes = await page.pdf(pdfOptions);
+    return Buffer.from(pdfBytes);
+  } finally {
+    await browser.close();
+  }
+}
+
+const pdfOptions = {
+  format: "A4" as const,
+  printBackground: true,
+  margin: {
+    top: "25mm",
+    right: "25mm",
+    bottom: "25mm",
+    left: "25mm",
+  },
+};
