@@ -47,10 +47,12 @@ type AnafFoundItem = {
 };
 
 type AnafResponse = {
-  cod?: number;
+  cod?: number | string;
   message?: string;
   found?: AnafFoundItem[];
   notFound?: unknown[];
+  mesaj?: string;
+  [key: string]: unknown;
 };
 
 function normalizeCui(cui: string): string {
@@ -133,10 +135,15 @@ export async function fetchCompanyByCui(
     throw new Error("ANAF response is not valid JSON");
   }
 
-  if (json.cod !== 200) {
-    throw new Error(
-      json.message ? `ANAF: ${json.message}` : "ANAF returned an error"
-    );
+  const code = json.cod;
+  if (code !== 200 && code !== "200") {
+    const msg =
+      (json.message != null && String(json.message).trim()) ||
+      (json.mesaj != null && String(json.mesaj).trim()) ||
+      "";
+    const parts = msg ? [msg] : [];
+    if (code != null) parts.push(`(cod: ${code})`);
+    throw new Error(parts.length ? `ANAF: ${parts.join(" ")}` : "ANAF: răspuns invalid");
   }
 
   const found = json.found ?? [];
