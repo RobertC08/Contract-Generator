@@ -1,4 +1,5 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 
 export interface StorageProvider {
@@ -6,6 +7,7 @@ export interface StorageProvider {
 }
 
 const LOCAL_CONTRACTS_DIR = "public/contracts";
+const SERVERLESS_CONTRACTS_DIR = path.join(os.tmpdir(), "contracts");
 
 function ensureDir(dir: string): void {
   if (!fs.existsSync(dir)) {
@@ -16,7 +18,11 @@ function ensureDir(dir: string): void {
 export class LocalStorageProvider implements StorageProvider {
   private baseDir: string;
 
-  constructor(baseDir: string = LOCAL_CONTRACTS_DIR) {
+  constructor(
+    baseDir: string = process.env.VERCEL === "1"
+      ? SERVERLESS_CONTRACTS_DIR
+      : LOCAL_CONTRACTS_DIR
+  ) {
     this.baseDir = path.isAbsolute(baseDir)
       ? baseDir
       : path.join(process.cwd(), baseDir);
