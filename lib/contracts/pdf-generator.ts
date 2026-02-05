@@ -33,13 +33,16 @@ async function generatePdfLocal(html: string): Promise<Buffer> {
   }
 }
 
+const CHROMIUM_PACK_URL =
+  "https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar";
+
 async function generatePdfVercel(html: string): Promise<Buffer> {
   const chromium = await import("@sparticuz/chromium-min");
   const puppeteer = await import("puppeteer-core");
   const browser = await puppeteer.default.launch({
     args: chromium.default.args,
     defaultViewport: chromium.default.defaultViewport,
-    executablePath: await chromium.default.executablePath(),
+    executablePath: await chromium.default.executablePath(CHROMIUM_PACK_URL),
     headless: chromium.default.headless,
   });
   try {
