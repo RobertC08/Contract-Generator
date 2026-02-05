@@ -100,6 +100,20 @@ const inputClass =
   "w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 text-sm";
 const labelClass = "block text-sm font-medium text-zinc-700 dark:text-zinc-300";
 
+function isValidCuiInput(cui: string): boolean {
+  const digits = cui.replace(/\s/g, "").replace(/^RO/i, "").replace(/\D/g, "");
+  return digits.length >= 6 && digits.length <= 10;
+}
+
+type AnafLookupResponse = {
+  denumire: string;
+  adresa: string;
+  nrRegCom: string;
+  iban?: string;
+  cui: string;
+  telefon?: string;
+};
+
 function Field({
   id,
   label,
@@ -133,11 +147,17 @@ function Field({
   );
 }
 
+type AnafSectionStatus = "idle" | "loading" | "error" | "success";
+
 export function ContractForm() {
   const [form, setForm] = useState<FormState>(initial);
   const [templateContent, setTemplateContent] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [anafPrestator, setAnafPrestator] = useState<AnafSectionStatus>("idle");
+  const [anafPrestatorError, setAnafPrestatorError] = useState<string | null>(null);
+  const [anafBeneficiar, setAnafBeneficiar] = useState<AnafSectionStatus>("idle");
+  const [anafBeneficiarError, setAnafBeneficiarError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/contracts?templateId=${encodeURIComponent(TEMPLATE_ID)}`)
@@ -162,6 +182,68 @@ export function ContractForm() {
 
   const update = (key: keyof FormState, value: string | TipParte) =>
     setForm((p) => ({ ...p, [key]: value }));
+
+  async function fetchAnafPrestator() {
+    const cui = form.prestatorCUI.trim();
+    if (!isValidCuiInput(cui)) return;
+    setAnafPrestator("loading");
+    setAnafPrestatorError(null);
+    try {
+      const res = await fetch("/api/anaf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cui }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { message?: string } & AnafLookupResponse;
+      if (!res.ok) {
+        setAnafPrestatorError(data.message ?? "Eroare la căutare");
+        setAnafPrestator("error");
+        return;
+      }
+      setForm((p) => ({
+        ...p,
+        prestatorNume: data.denumire ?? p.prestatorNume,
+        prestatorSediu: data.adresa ?? p.prestatorSediu,
+        prestatorRegCom: data.nrRegCom ?? p.prestatorRegCom,
+        prestatorCont: data.iban ?? p.prestatorCont,
+      }));
+      setAnafPrestator("success");
+    } catch {
+      setAnafPrestatorError("Eroare rețea");
+      setAnafPrestator("error");
+    }
+  }
+
+  async function fetchAnafBeneficiar() {
+    const cui = form.beneficiarCUI.trim();
+    if (!isValidCuiInput(cui)) return;
+    setAnafBeneficiar("loading");
+    setAnafBeneficiarError(null);
+    try {
+      const res = await fetch("/api/anaf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cui }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { message?: string } & AnafLookupResponse;
+      if (!res.ok) {
+        setAnafBeneficiarError(data.message ?? "Eroare la căutare");
+        setAnafBeneficiar("error");
+        return;
+      }
+      setForm((p) => ({
+        ...p,
+        beneficiarNume: data.denumire ?? p.beneficiarNume,
+        beneficiarSediu: data.adresa ?? p.beneficiarSediu,
+        beneficiarRegCom: data.nrRegCom ?? p.beneficiarRegCom,
+        beneficiarCont: data.iban ?? p.beneficiarCont,
+      }));
+      setAnafBeneficiar("success");
+    } catch {
+      setAnafBeneficiarError("Eroare rețea");
+      setAnafBeneficiar("error");
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -255,18 +337,38 @@ export function ContractForm() {
           </div>
         </div>
         <div className="grid gap-3">
-          <Field id="prestatorNume" label={form.prestatorTip === "juridica" ? "Denumire" : "Nume complet"} value={form.prestatorNume} onChange={(v) => update("prestatorNume", v)} placeholder={form.prestatorTip === "juridica" ? "SC Exemplu SRL" : "Nume Prenume"} />
-          <Field id="prestatorSediu" label={form.prestatorTip === "juridica" ? "Sediul social" : "Adresa"} value={form.prestatorSediu} onChange={(v) => update("prestatorSediu", v)} placeholder="Adresa completă" />
           {form.prestatorTip === "juridica" ? (
             <>
-              <div className="grid grid-cols-2 gap-3">
-                <Field id="prestatorRegCom" label="Reg. Comerțului nr." value={form.prestatorRegCom} onChange={(v) => update("prestatorRegCom", v)} />
-                <Field id="prestatorCUI" label="CUI" value={form.prestatorCUI} onChange={(v) => update("prestatorCUI", v)} />
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 min-w-0">
+                  <Field id="prestatorCUI" label="CUI" value={form.prestatorCUI} onChange={(v) => update("prestatorCUI", v)} placeholder="123456" />
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchAnafPrestator}
+                  disabled={!isValidCuiInput(form.prestatorCUI.trim()) || anafPrestator === "loading"}
+                  className="flex-shrink-0 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {anafPrestator === "loading" ? "Se caută…" : "Caută după CUI"}
+                </button>
               </div>
+              {anafPrestator === "error" && anafPrestatorError && (
+                <p className="text-sm text-red-600 dark:text-red-400" role="alert">{anafPrestatorError}</p>
+              )}
+              {anafPrestator === "success" && (
+                <p className="text-sm text-green-600 dark:text-green-400">Date completate din ANAF.</p>
+              )}
+              <Field id="prestatorNume" label="Denumire" value={form.prestatorNume} onChange={(v) => update("prestatorNume", v)} placeholder="SC Exemplu SRL" />
+              <Field id="prestatorSediu" label="Sediul social" value={form.prestatorSediu} onChange={(v) => update("prestatorSediu", v)} placeholder="Adresa completă" />
+              <Field id="prestatorRegCom" label="Reg. Comerțului nr." value={form.prestatorRegCom} onChange={(v) => update("prestatorRegCom", v)} />
               <Field id="prestatorReprezentant" label="Reprezentant" value={form.prestatorReprezentant} onChange={(v) => update("prestatorReprezentant", v)} placeholder="Nume Prenume" />
             </>
           ) : (
-            <Field id="prestatorCNP" label="CNP" value={form.prestatorCNP} onChange={(v) => update("prestatorCNP", v)} placeholder="1234567890123" />
+            <>
+              <Field id="prestatorNume" label="Nume complet" value={form.prestatorNume} onChange={(v) => update("prestatorNume", v)} placeholder="Nume Prenume" />
+              <Field id="prestatorSediu" label="Adresa" value={form.prestatorSediu} onChange={(v) => update("prestatorSediu", v)} placeholder="Adresa completă" />
+              <Field id="prestatorCNP" label="CNP" value={form.prestatorCNP} onChange={(v) => update("prestatorCNP", v)} placeholder="1234567890123" />
+            </>
           )}
           <Field id="prestatorCont" label="Cont bancar" value={form.prestatorCont} onChange={(v) => update("prestatorCont", v)} placeholder="RO00XXXX..." />
           <Field id="prestatorBanca" label="Banca" value={form.prestatorBanca} onChange={(v) => update("prestatorBanca", v)} placeholder="ING Bank" />
@@ -303,18 +405,38 @@ export function ContractForm() {
           </div>
         </div>
         <div className="grid gap-3">
-          <Field id="beneficiarNume" label={form.beneficiarTip === "juridica" ? "Denumire" : "Nume complet"} value={form.beneficiarNume} onChange={(v) => update("beneficiarNume", v)} placeholder={form.beneficiarTip === "juridica" ? "SC Client SRL" : "Nume Prenume"} />
-          <Field id="beneficiarSediu" label={form.beneficiarTip === "juridica" ? "Sediul social" : "Adresa"} value={form.beneficiarSediu} onChange={(v) => update("beneficiarSediu", v)} />
           {form.beneficiarTip === "juridica" ? (
             <>
-              <div className="grid grid-cols-2 gap-3">
-                <Field id="beneficiarRegCom" label="Reg. Comerțului nr." value={form.beneficiarRegCom} onChange={(v) => update("beneficiarRegCom", v)} />
-                <Field id="beneficiarCUI" label="CUI" value={form.beneficiarCUI} onChange={(v) => update("beneficiarCUI", v)} />
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 min-w-0">
+                  <Field id="beneficiarCUI" label="CUI" value={form.beneficiarCUI} onChange={(v) => update("beneficiarCUI", v)} placeholder="123456" />
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchAnafBeneficiar}
+                  disabled={!isValidCuiInput(form.beneficiarCUI.trim()) || anafBeneficiar === "loading"}
+                  className="flex-shrink-0 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {anafBeneficiar === "loading" ? "Se caută…" : "Caută după CUI"}
+                </button>
               </div>
+              {anafBeneficiar === "error" && anafBeneficiarError && (
+                <p className="text-sm text-red-600 dark:text-red-400" role="alert">{anafBeneficiarError}</p>
+              )}
+              {anafBeneficiar === "success" && (
+                <p className="text-sm text-green-600 dark:text-green-400">Date completate din ANAF.</p>
+              )}
+              <Field id="beneficiarNume" label="Denumire" value={form.beneficiarNume} onChange={(v) => update("beneficiarNume", v)} placeholder="SC Client SRL" />
+              <Field id="beneficiarSediu" label="Sediul social" value={form.beneficiarSediu} onChange={(v) => update("beneficiarSediu", v)} />
+              <Field id="beneficiarRegCom" label="Reg. Comerțului nr." value={form.beneficiarRegCom} onChange={(v) => update("beneficiarRegCom", v)} />
               <Field id="beneficiarReprezentant" label="Reprezentant" value={form.beneficiarReprezentant} onChange={(v) => update("beneficiarReprezentant", v)} />
             </>
           ) : (
-            <Field id="beneficiarCNP" label="CNP" value={form.beneficiarCNP} onChange={(v) => update("beneficiarCNP", v)} placeholder="1234567890123" />
+            <>
+              <Field id="beneficiarNume" label="Nume complet" value={form.beneficiarNume} onChange={(v) => update("beneficiarNume", v)} placeholder="Nume Prenume" />
+              <Field id="beneficiarSediu" label="Adresa" value={form.beneficiarSediu} onChange={(v) => update("beneficiarSediu", v)} />
+              <Field id="beneficiarCNP" label="CNP" value={form.beneficiarCNP} onChange={(v) => update("beneficiarCNP", v)} placeholder="1234567890123" />
+            </>
           )}
           <Field id="beneficiarCont" label="Cont bancar" value={form.beneficiarCont} onChange={(v) => update("beneficiarCont", v)} />
           <Field id="beneficiarBanca" label="Banca" value={form.beneficiarBanca} onChange={(v) => update("beneficiarBanca", v)} />

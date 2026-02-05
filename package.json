@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next start",
     "lint": "eslint",
+    "test": "vitest run",
     "postinstall": "prisma generate"
   },
   "dependencies": {
