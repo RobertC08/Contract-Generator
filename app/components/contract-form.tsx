@@ -147,6 +147,43 @@ function Field({
   );
 }
 
+function formatDateToDisplay(iso: string): string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+function DateField({
+  id,
+  label,
+  value,
+  onChange,
+  required = true,
+}: {
+  id: keyof FormState;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+}) {
+  return (
+    <div className="space-y-1">
+      <label htmlFor={id} className={labelClass}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key.length === 1) e.preventDefault(); }}
+        required={required}
+        className={inputClass}
+      />
+    </div>
+  );
+}
+
 type AnafSectionStatus = "idle" | "loading" | "error" | "success";
 
 export function ContractForm() {
@@ -169,6 +206,8 @@ export function ContractForm() {
   const previewVariables = useMemo(
     () => ({
       ...form,
+      contractData: formatDateToDisplay(form.contractData) || form.contractData,
+      dataIntrareVigoare: formatDateToDisplay(form.dataIntrareVigoare) || form.dataIntrareVigoare,
       prestatorDescriere: buildPrestatorDescriere(form),
       beneficiarDescriere: buildBeneficiarDescriere(form),
     }),
@@ -257,6 +296,8 @@ export function ContractForm() {
           templateId: TEMPLATE_ID,
           variables: {
             ...form,
+            contractData: formatDateToDisplay(form.contractData) || form.contractData,
+            dataIntrareVigoare: formatDateToDisplay(form.dataIntrareVigoare) || form.dataIntrareVigoare,
             prestatorDescriere: buildPrestatorDescriere(form),
             beneficiarDescriere: buildBeneficiarDescriere(form),
           },
@@ -297,12 +338,11 @@ export function ContractForm() {
             onChange={(v) => update("contractNr", v)}
             placeholder="1"
           />
-          <Field
+          <DateField
             id="contractData"
             label="Data contract"
             value={form.contractData}
             onChange={(v) => update("contractData", v)}
-            placeholder="01.01.2025"
           />
         </div>
       </section>
@@ -450,7 +490,7 @@ export function ContractForm() {
         <div className="grid grid-cols-2 gap-3">
           <Field id="lunaInceput" label="Luna început servicii" value={form.lunaInceput} onChange={(v) => update("lunaInceput", v)} placeholder="ianuarie" />
           <Field id="anulInceput" label="Anul început" value={form.anulInceput} onChange={(v) => update("anulInceput", v)} placeholder="2025" />
-          <Field id="dataIntrareVigoare" label="Data intrării în vigoare" value={form.dataIntrareVigoare} onChange={(v) => update("dataIntrareVigoare", v)} placeholder="01.01.2025" />
+          <DateField id="dataIntrareVigoare" label="Data intrării în vigoare" value={form.dataIntrareVigoare} onChange={(v) => update("dataIntrareVigoare", v)} />
           <Field id="pretLunar" label="Preț lunar (lei)" value={form.pretLunar} onChange={(v) => update("pretLunar", v)} placeholder="500" />
         </div>
       </section>
