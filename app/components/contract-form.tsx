@@ -26,20 +26,26 @@ function renderPreview(templateHtml: string, variables: FormState): string {
   return out;
 }
 
+type TipParte = "juridica" | "fizica";
+
 type FormState = {
   contractNr: string;
   contractData: string;
+  prestatorTip: TipParte;
   prestatorNume: string;
   prestatorSediu: string;
   prestatorRegCom: string;
   prestatorCUI: string;
+  prestatorCNP: string;
   prestatorCont: string;
   prestatorBanca: string;
   prestatorReprezentant: string;
+  beneficiarTip: TipParte;
   beneficiarNume: string;
   beneficiarSediu: string;
   beneficiarRegCom: string;
   beneficiarCUI: string;
+  beneficiarCNP: string;
   beneficiarCont: string;
   beneficiarBanca: string;
   beneficiarReprezentant: string;
@@ -52,17 +58,21 @@ type FormState = {
 const initial: FormState = {
   contractNr: "",
   contractData: "",
+  prestatorTip: "juridica",
   prestatorNume: "",
   prestatorSediu: "",
   prestatorRegCom: "",
   prestatorCUI: "",
+  prestatorCNP: "",
   prestatorCont: "",
   prestatorBanca: "",
   prestatorReprezentant: "",
+  beneficiarTip: "juridica",
   beneficiarNume: "",
   beneficiarSediu: "",
   beneficiarRegCom: "",
   beneficiarCUI: "",
+  beneficiarCNP: "",
   beneficiarCont: "",
   beneficiarBanca: "",
   beneficiarReprezentant: "",
@@ -71,6 +81,20 @@ const initial: FormState = {
   dataIntrareVigoare: "",
   pretLunar: "",
 };
+
+function buildPrestatorDescriere(f: FormState): string {
+  if (f.prestatorTip === "juridica") {
+    return `${f.prestatorNume}, cu sediul social în ${f.prestatorSediu}, înregistrată la Registrul Comerțului sub nr. ${f.prestatorRegCom}, CUI ${f.prestatorCUI}, cont nr. ${f.prestatorCont} deschis la ${f.prestatorBanca}, reprezentată prin dl. ${f.prestatorReprezentant}.`;
+  }
+  return `${f.prestatorNume} (persoană fizică), CNP ${f.prestatorCNP}, domiciliul în ${f.prestatorSediu}, cont nr. ${f.prestatorCont} deschis la ${f.prestatorBanca}.`;
+}
+
+function buildBeneficiarDescriere(f: FormState): string {
+  if (f.beneficiarTip === "juridica") {
+    return `${f.beneficiarNume}, cu sediul social în ${f.beneficiarSediu}, înregistrată la Registrul Comerțului sub nr. ${f.beneficiarRegCom}, CUI ${f.beneficiarCUI}, cont nr. ${f.beneficiarCont} deschis la ${f.beneficiarBanca}, reprezentată prin ${f.beneficiarReprezentant}.`;
+  }
+  return `${f.beneficiarNume} (persoană fizică), CNP ${f.beneficiarCNP}, domiciliul în ${f.beneficiarSediu}, cont nr. ${f.beneficiarCont} deschis la ${f.beneficiarBanca}.`;
+}
 
 const inputClass =
   "w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 text-sm";
@@ -122,12 +146,21 @@ export function ContractForm() {
       .catch(() => setTemplateContent(""));
   }, []);
 
-  const previewHtml = useMemo(
-    () => (templateContent ? renderPreview(templateContent, form) : null),
-    [templateContent, form]
+  const previewVariables = useMemo(
+    () => ({
+      ...form,
+      prestatorDescriere: buildPrestatorDescriere(form),
+      beneficiarDescriere: buildBeneficiarDescriere(form),
+    }),
+    [form]
   );
 
-  const update = (key: keyof FormState, value: string) =>
+  const previewHtml = useMemo(
+    () => (templateContent ? renderPreview(templateContent, previewVariables) : null),
+    [templateContent, previewVariables]
+  );
+
+  const update = (key: keyof FormState, value: string | TipParte) =>
     setForm((p) => ({ ...p, [key]: value }));
 
   async function handleSubmit(e: React.FormEvent) {
@@ -140,7 +173,11 @@ export function ContractForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           templateId: TEMPLATE_ID,
-          variables: form,
+          variables: {
+            ...form,
+            prestatorDescriere: buildPrestatorDescriere(form),
+            beneficiarDescriere: buildBeneficiarDescriere(form),
+          },
         }),
       });
       if (!res.ok) {
@@ -192,16 +229,47 @@ export function ContractForm() {
         <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-700 pb-1">
           Prestator
         </h3>
-        <div className="grid gap-3">
-          <Field id="prestatorNume" label="Denumire" value={form.prestatorNume} onChange={(v) => update("prestatorNume", v)} placeholder="SC Exemplu SRL" />
-          <Field id="prestatorSediu" label="Sediul social" value={form.prestatorSediu} onChange={(v) => update("prestatorSediu", v)} placeholder="Adresa completă" />
-          <div className="grid grid-cols-2 gap-3">
-            <Field id="prestatorRegCom" label="Reg. Comerțului nr." value={form.prestatorRegCom} onChange={(v) => update("prestatorRegCom", v)} />
-            <Field id="prestatorCUI" label="CUI" value={form.prestatorCUI} onChange={(v) => update("prestatorCUI", v)} />
+        <div className="space-y-2">
+          <span className={labelClass}>Tip</span>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="prestatorTip"
+                checked={form.prestatorTip === "juridica"}
+                onChange={() => update("prestatorTip", "juridica")}
+                className="rounded border-zinc-400 text-zinc-900 focus:ring-zinc-500"
+              />
+              <span className="text-sm text-zinc-700 dark:text-zinc-300">Persoană juridică</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="prestatorTip"
+                checked={form.prestatorTip === "fizica"}
+                onChange={() => update("prestatorTip", "fizica")}
+                className="rounded border-zinc-400 text-zinc-900 focus:ring-zinc-500"
+              />
+              <span className="text-sm text-zinc-700 dark:text-zinc-300">Persoană fizică</span>
+            </label>
           </div>
+        </div>
+        <div className="grid gap-3">
+          <Field id="prestatorNume" label={form.prestatorTip === "juridica" ? "Denumire" : "Nume complet"} value={form.prestatorNume} onChange={(v) => update("prestatorNume", v)} placeholder={form.prestatorTip === "juridica" ? "SC Exemplu SRL" : "Nume Prenume"} />
+          <Field id="prestatorSediu" label={form.prestatorTip === "juridica" ? "Sediul social" : "Adresa"} value={form.prestatorSediu} onChange={(v) => update("prestatorSediu", v)} placeholder="Adresa completă" />
+          {form.prestatorTip === "juridica" ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <Field id="prestatorRegCom" label="Reg. Comerțului nr." value={form.prestatorRegCom} onChange={(v) => update("prestatorRegCom", v)} />
+                <Field id="prestatorCUI" label="CUI" value={form.prestatorCUI} onChange={(v) => update("prestatorCUI", v)} />
+              </div>
+              <Field id="prestatorReprezentant" label="Reprezentant" value={form.prestatorReprezentant} onChange={(v) => update("prestatorReprezentant", v)} placeholder="Nume Prenume" />
+            </>
+          ) : (
+            <Field id="prestatorCNP" label="CNP" value={form.prestatorCNP} onChange={(v) => update("prestatorCNP", v)} placeholder="1234567890123" />
+          )}
           <Field id="prestatorCont" label="Cont bancar" value={form.prestatorCont} onChange={(v) => update("prestatorCont", v)} placeholder="RO00XXXX..." />
           <Field id="prestatorBanca" label="Banca" value={form.prestatorBanca} onChange={(v) => update("prestatorBanca", v)} placeholder="ING Bank" />
-          <Field id="prestatorReprezentant" label="Reprezentant" value={form.prestatorReprezentant} onChange={(v) => update("prestatorReprezentant", v)} placeholder="Nume Prenume" />
         </div>
       </section>
 
@@ -209,16 +277,47 @@ export function ContractForm() {
         <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-700 pb-1">
           Beneficiar
         </h3>
-        <div className="grid gap-3">
-          <Field id="beneficiarNume" label="Denumire" value={form.beneficiarNume} onChange={(v) => update("beneficiarNume", v)} placeholder="SC Client SRL" />
-          <Field id="beneficiarSediu" label="Sediul social" value={form.beneficiarSediu} onChange={(v) => update("beneficiarSediu", v)} />
-          <div className="grid grid-cols-2 gap-3">
-            <Field id="beneficiarRegCom" label="Reg. Comerțului nr." value={form.beneficiarRegCom} onChange={(v) => update("beneficiarRegCom", v)} />
-            <Field id="beneficiarCUI" label="CUI" value={form.beneficiarCUI} onChange={(v) => update("beneficiarCUI", v)} />
+        <div className="space-y-2">
+          <span className={labelClass}>Tip</span>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="beneficiarTip"
+                checked={form.beneficiarTip === "juridica"}
+                onChange={() => update("beneficiarTip", "juridica")}
+                className="rounded border-zinc-400 text-zinc-900 focus:ring-zinc-500"
+              />
+              <span className="text-sm text-zinc-700 dark:text-zinc-300">Persoană juridică</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="beneficiarTip"
+                checked={form.beneficiarTip === "fizica"}
+                onChange={() => update("beneficiarTip", "fizica")}
+                className="rounded border-zinc-400 text-zinc-900 focus:ring-zinc-500"
+              />
+              <span className="text-sm text-zinc-700 dark:text-zinc-300">Persoană fizică</span>
+            </label>
           </div>
+        </div>
+        <div className="grid gap-3">
+          <Field id="beneficiarNume" label={form.beneficiarTip === "juridica" ? "Denumire" : "Nume complet"} value={form.beneficiarNume} onChange={(v) => update("beneficiarNume", v)} placeholder={form.beneficiarTip === "juridica" ? "SC Client SRL" : "Nume Prenume"} />
+          <Field id="beneficiarSediu" label={form.beneficiarTip === "juridica" ? "Sediul social" : "Adresa"} value={form.beneficiarSediu} onChange={(v) => update("beneficiarSediu", v)} />
+          {form.beneficiarTip === "juridica" ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <Field id="beneficiarRegCom" label="Reg. Comerțului nr." value={form.beneficiarRegCom} onChange={(v) => update("beneficiarRegCom", v)} />
+                <Field id="beneficiarCUI" label="CUI" value={form.beneficiarCUI} onChange={(v) => update("beneficiarCUI", v)} />
+              </div>
+              <Field id="beneficiarReprezentant" label="Reprezentant" value={form.beneficiarReprezentant} onChange={(v) => update("beneficiarReprezentant", v)} />
+            </>
+          ) : (
+            <Field id="beneficiarCNP" label="CNP" value={form.beneficiarCNP} onChange={(v) => update("beneficiarCNP", v)} placeholder="1234567890123" />
+          )}
           <Field id="beneficiarCont" label="Cont bancar" value={form.beneficiarCont} onChange={(v) => update("beneficiarCont", v)} />
           <Field id="beneficiarBanca" label="Banca" value={form.beneficiarBanca} onChange={(v) => update("beneficiarBanca", v)} />
-          <Field id="beneficiarReprezentant" label="Reprezentant" value={form.beneficiarReprezentant} onChange={(v) => update("beneficiarReprezentant", v)} />
         </div>
       </section>
 
