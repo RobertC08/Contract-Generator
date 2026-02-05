@@ -103,6 +103,32 @@ describe("fetchCompanyByCui", () => {
     expect(await fetchCompanyByCui("123456")).toBeNull();
   });
 
+  it("accepts response without cod when found is present (ANAF variant)", async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          found: [
+            {
+              date_generale: {
+                cui: 39066744,
+                denumire: "FRUIT CREATIVE S.R.L.",
+                adresa: "JUD. ILFOV, SAT MOARA VLĂSIEI...",
+                nrRegCom: "J23/5512/2020",
+                iban: "",
+              },
+            },
+          ],
+          notFound: [],
+        }),
+        { headers: { "Content-Type": "application/json" } }
+      )
+    );
+    const result = await fetchCompanyByCui("39066744");
+    expect(result).not.toBeNull();
+    expect(result?.denumire).toBe("FRUIT CREATIVE S.R.L.");
+    expect(result?.nrRegCom).toBe("J23/5512/2020");
+  });
+
   it("returns null when found is empty and notFound does not contain CUI", async () => {
     vi.mocked(globalThis.fetch).mockResolvedValue(
       new Response(
@@ -180,4 +206,32 @@ describe("fetchCompanyByCui", () => {
       "Str. Test 5, București, jud. București, 010101, România"
     );
   });
+});
+
+describe("fetchCompanyByCui (integration – real ANAF API)", () => {
+  it("calls ANAF API with CUI 342414 and returns company or null", async () => {
+    let result: Awaited<ReturnType<typeof fetchCompanyByCui>>;
+    try {
+      result = await fetchCompanyByCui("342414");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("404") || msg.includes("ANAF request failed")) {
+        expect(msg).toContain("404");
+        return;
+      }
+      throw err;
+    }
+    if (result === null) {
+      expect(result).toBeNull();
+      return;
+    }
+    expect(result).toMatchObject({
+      cui: expect.any(String),
+      denumire: expect.any(String),
+      adresa: expect.any(String),
+      nrRegCom: expect.any(String),
+    });
+    expect(typeof result.denumire).toBe("string");
+    expect(result.denumire.length).toBeGreaterThan(0);
+  }, 15000);
 });

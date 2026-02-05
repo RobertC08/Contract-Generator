@@ -136,13 +136,13 @@ export async function fetchCompanyByCui(
   }
 
   const code = json.cod;
-  if (code !== 200 && code !== "200") {
+  if (code != null && code !== 200 && code !== "200") {
     const msg =
       (json.message != null && String(json.message).trim()) ||
       (json.mesaj != null && String(json.mesaj).trim()) ||
       "";
     const parts = msg ? [msg] : [];
-    if (code != null) parts.push(`(cod: ${code})`);
+    parts.push(`(cod: ${code})`);
     throw new Error(parts.length ? `ANAF: ${parts.join(" ")}` : "ANAF: răspuns invalid");
   }
 
