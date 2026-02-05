@@ -100,6 +100,11 @@ const inputClass =
   "w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 text-sm";
 const labelClass = "block text-sm font-medium text-zinc-700 dark:text-zinc-300";
 
+const LUNI = [
+  "ianuarie", "februarie", "martie", "aprilie", "mai", "iunie",
+  "iulie", "august", "septembrie", "octombrie", "noiembrie", "decembrie",
+];
+
 function isValidCuiInput(cui: string): boolean {
   const digits = cui.replace(/\s/g, "").replace(/^RO/i, "").replace(/\D/g, "");
   return digits.length >= 6 && digits.length <= 10;
@@ -488,7 +493,23 @@ export function ContractForm() {
           Servicii și preț
         </h3>
         <div className="grid grid-cols-2 gap-3">
-          <Field id="lunaInceput" label="Luna început servicii" value={form.lunaInceput} onChange={(v) => update("lunaInceput", v)} placeholder="ianuarie" />
+          <div className="space-y-1">
+            <label htmlFor="lunaInceput" className={labelClass}>
+              Luna început servicii
+            </label>
+            <select
+              id="lunaInceput"
+              value={form.lunaInceput}
+              onChange={(e) => update("lunaInceput", e.target.value)}
+              required
+              className={inputClass}
+            >
+              <option value="">Selectați luna</option>
+              {LUNI.map((luna) => (
+                <option key={luna} value={luna}>{luna}</option>
+              ))}
+            </select>
+          </div>
           <Field id="anulInceput" label="Anul început" value={form.anulInceput} onChange={(v) => update("anulInceput", v)} placeholder="2025" />
           <DateField id="dataIntrareVigoare" label="Data intrării în vigoare" value={form.dataIntrareVigoare} onChange={(v) => update("dataIntrareVigoare", v)} />
           <Field id="pretLunar" label="Preț lunar (lei)" value={form.pretLunar} onChange={(v) => update("pretLunar", v)} placeholder="500" />
