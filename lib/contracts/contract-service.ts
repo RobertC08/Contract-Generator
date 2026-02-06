@@ -7,6 +7,7 @@ import {
 } from "./errors";
 import { renderTemplate } from "./template-engine";
 import { generatePdf } from "./pdf-generator";
+import { sourceToHtml, isHtmlContent } from "./source-to-html";
 
 export type CreateContractParams = {
   prisma: PrismaClient;
@@ -34,9 +35,13 @@ export async function createContract({
     throw new TemplateNotFoundError(templateId);
   }
 
+  const rawContent = template.content;
+  const contentForRender = isHtmlContent(rawContent)
+    ? rawContent
+    : sourceToHtml(rawContent);
   let html: string;
   try {
-    html = renderTemplate(template.content, variables);
+    html = renderTemplate(contentForRender, variables);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     console.error("[createContract] Template render failed:", message);

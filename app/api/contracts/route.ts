@@ -9,6 +9,7 @@ import {
   PdfGenerationError,
   StorageError,
 } from "@/lib/contracts/errors";
+import { sourceToHtml, isHtmlContent } from "@/lib/contracts/source-to-html";
 
 export const runtime = "nodejs";
 
@@ -53,7 +54,10 @@ export async function GET(request: NextRequest) {
   if (!template) {
     return NextResponse.json({ message: "Template not found" }, { status: 404 });
   }
-  return NextResponse.json({ content: template.content });
+  const content = isHtmlContent(template.content)
+    ? template.content
+    : sourceToHtml(template.content);
+  return NextResponse.json({ content });
 }
 
 export async function POST(request: NextRequest) {
