@@ -1,31 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { htmlToSource, isHtmlContent } from "@/lib/contracts/source-to-html";
+import { isHtmlContent, sourceToHtml } from "@/lib/contracts/source-to-html";
+import { TemplateEditor } from "@/app/components/template-editor";
 
 const inputClass =
   "w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 text-sm";
 const labelClass = "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1";
-
-const VARIABILE_COMUNE = [
-  "contractNr",
-  "contractData",
-  "prestatorNume",
-  "prestatorSediu",
-  "prestatorCUI",
-  "prestatorDescriere",
-  "beneficiarNume",
-  "beneficiarSediu",
-  "beneficiarCUI",
-  "beneficiarDescriere",
-  "lunaInceput",
-  "anulInceput",
-  "dataIntrareVigoare",
-  "pretLunar",
-  "continut",
-];
 
 export default function EditTemplatePage() {
   const params = useParams();
@@ -37,7 +20,6 @@ export default function EditTemplatePage() {
   const [status, setStatus] = useState<"idle" | "loading" | "saving" | "done" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
   const [showVarDropdown, setShowVarDropdown] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -51,7 +33,13 @@ export default function EditTemplatePage() {
         }
         setName(data.name ?? "");
         const raw = data.content ?? "";
-        setContent(isHtmlContent(raw) ? htmlToSource(raw) : raw);
+        const bodyInner = (html: string) =>
+          html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1]?.trim() ?? html;
+        setContent(
+          isHtmlContent(raw)
+            ? bodyInner(raw)
+            : bodyInner(sourceToHtml(raw))
+        );
         setStatus("idle");
       })
       .catch(() => {
@@ -59,21 +47,6 @@ export default function EditTemplatePage() {
         setErrorMessage("Eroare la încărcare");
       });
   }, [id]);
-
-  function insertVariable(varName: string) {
-    const el = textareaRef.current;
-    if (!el) return;
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const insert = `{{${varName}}}`;
-    const next = content.slice(0, start) + insert + content.slice(end);
-    setContent(next);
-    setShowVarDropdown(false);
-    setTimeout(() => {
-      el.focus();
-      el.setSelectionRange(start + insert.length, start + insert.length);
-    }, 0);
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -137,7 +110,7 @@ export default function EditTemplatePage() {
           Editează template
         </h1>
         <p className="mt-1 text-zinc-600 dark:text-zinc-400 text-sm mb-6">
-          Modifică textul. Pentru câmpuri dinamice folosește „Inserare variabilă”.
+          Modifică textul și formatarea. Folosește „Inserare variabilă” pentru câmpuri dinamice.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -156,49 +129,15 @@ export default function EditTemplatePage() {
             />
           </div>
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label htmlFor="content" className={labelClass}>
-                Conținut
-              </label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowVarDropdown((v) => !v)}
-                  className="rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                >
-                  Inserare variabilă
-                </button>
-                {showVarDropdown && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      aria-hidden
-                      onClick={() => setShowVarDropdown(false)}
-                    />
-                    <div className="absolute right-0 top-full mt-1 z-20 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1 max-h-48 overflow-auto min-w-[180px]">
-                      {VARIABILE_COMUNE.map((v) => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => insertVariable(v)}
-                          className="w-full text-left px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                        >
-                          {v}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-            <textarea
-              ref={textareaRef}
-              id="content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className={`${inputClass} min-h-[320px] whitespace-pre-wrap`}
-              placeholder="Textul contractului. Folosește „Inserare variabilă” pentru câmpuri dinamice."
-              required
+            <label className={labelClass}>
+              Conținut
+            </label>
+            <TemplateEditor
+              initialContent={content}
+              onContentChange={setContent}
+              showVarDropdown={showVarDropdown}
+              onToggleVarDropdown={() => setShowVarDropdown((v) => !v)}
+              minHeight="320px"
             />
           </div>
           {status === "error" && (

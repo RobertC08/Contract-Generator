@@ -65,3 +65,23 @@ export function htmlToSource(html: string): string {
 export function isHtmlContent(content: string): boolean {
   return content.trimStart().startsWith("<");
 }
+
+const DOCUMENT_SHELL = `<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <title>Contract</title>
+  <style>
+    @page { size: A4; margin: 25mm; }
+    body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.4; padding: 25mm; color: #222; }
+    .underline { border-bottom: 1px solid #222; display: inline-block; min-width: 80px; }
+  </style>
+</head>
+<body>
+`;
+
+export function wrapFragmentInDocument(fragment: string): string {
+  const trimmed = fragment.trim();
+  if (trimmed.toLowerCase().includes("<html")) return trimmed;
+  return DOCUMENT_SHELL + trimmed + "\n</body>\n</html>";
+}

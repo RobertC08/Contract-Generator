@@ -9,7 +9,7 @@ import {
   PdfGenerationError,
   StorageError,
 } from "@/lib/contracts/errors";
-import { sourceToHtml, isHtmlContent } from "@/lib/contracts/source-to-html";
+import { sourceToHtml, isHtmlContent, wrapFragmentInDocument } from "@/lib/contracts/source-to-html";
 
 export const runtime = "nodejs";
 
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: "Template not found" }, { status: 404 });
   }
   const content = isHtmlContent(template.content)
-    ? template.content
+    ? wrapFragmentInDocument(template.content)
     : sourceToHtml(template.content);
   return NextResponse.json({ content });
 }

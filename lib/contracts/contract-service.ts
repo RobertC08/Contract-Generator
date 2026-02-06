@@ -7,7 +7,7 @@ import {
 } from "./errors";
 import { renderTemplate } from "./template-engine";
 import { generatePdf } from "./pdf-generator";
-import { sourceToHtml, isHtmlContent } from "./source-to-html";
+import { sourceToHtml, isHtmlContent, wrapFragmentInDocument } from "./source-to-html";
 
 export type CreateContractParams = {
   prisma: PrismaClient;
@@ -37,7 +37,7 @@ export async function createContract({
 
   const rawContent = template.content;
   const contentForRender = isHtmlContent(rawContent)
-    ? rawContent
+    ? wrapFragmentInDocument(rawContent)
     : sourceToHtml(rawContent);
   let html: string;
   try {
