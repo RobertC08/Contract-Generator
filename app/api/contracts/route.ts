@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   }
   const template = await prisma.contractTemplate.findUnique({
     where: { id: templateId },
-    select: { content: true },
+    select: { content: true, variableDefinitions: true },
   });
   if (!template) {
     return NextResponse.json({ message: "Template not found" }, { status: 404 });
@@ -57,7 +57,10 @@ export async function GET(request: NextRequest) {
   const content = isHtmlContent(template.content)
     ? wrapFragmentInDocument(template.content)
     : sourceToHtml(template.content);
-  return NextResponse.json({ content });
+  return NextResponse.json({
+    content,
+    variableDefinitions: template.variableDefinitions ?? undefined,
+  });
 }
 
 export async function POST(request: NextRequest) {

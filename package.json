@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "seed": "tsx prisma/seed.ts",
-    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev",
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev --webpack",
     "build": "next build",
     "start": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next start",
     "lint": "eslint",

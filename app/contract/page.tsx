@@ -1,8 +1,16 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
+import type { VariableDefinitions } from "@/lib/contracts/variable-definitions";
+import {
+  getVariableDefinition,
+  getVariableType,
+  formatDateToDisplay,
+  monthCodeToName,
+} from "@/lib/contracts/variable-utils";
+import { VariableInput } from "@/app/components/variable-input";
 
 function escapeHtml(s: string): string {
   return s
@@ -34,63 +42,151 @@ function extractVariables(html: string): string[] {
   return Array.from(names).sort();
 }
 
-const inputClass =
-  "w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 text-sm";
-const labelClass = "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1";
+type AnafStatus = "idle" | "loading" | "error" | "success";
 
 function ContractPageInner() {
   const searchParams = useSearchParams();
   const templateId = searchParams.get("templateId");
 
   const [templateContent, setTemplateContent] = useState<string | null>(null);
+  const [variableDefinitions, setVariableDefinitions] = useState<VariableDefinitions | null>(null);
   const [variables, setVariables] = useState<Record<string, string>>({});
   const [varNames, setVarNames] = useState<string[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [anafStatusByVar, setAnafStatusByVar] = useState<Record<string, AnafStatus>>({});
+  const [anafErrorByVar, setAnafErrorByVar] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
-    if (!templateId) {
-      setLoadError("Lipsește templateId");
-      return;
-    }
-    setLoadError(null);
+    if (!templateId) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setLoadError(null);
+    });
     fetch(`/api/contracts?templateId=${encodeURIComponent(templateId)}`)
       .then((r) => r.json())
       .then((data) => {
+        if (cancelled) return;
         if (data.content == null) {
           setLoadError("Template negăsit");
           return;
         }
+        setLoadError(null);
         setTemplateContent(data.content);
+        setVariableDefinitions(data.variableDefinitions ?? null);
         const names = extractVariables(data.content);
         setVarNames(names);
         setVariables(Object.fromEntries(names.map((n) => [n, ""])));
       })
-      .catch(() => setLoadError("Eroare la încărcare"));
+      .catch(() => {
+        if (!cancelled) setLoadError("Eroare la încărcare");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [templateId]);
+
+  const previewVariables = useMemo(() => {
+    const out: Record<string, string> = { ...variables };
+    varNames.forEach((name) => {
+      const v = variables[name];
+      if (v === undefined || v === "") return;
+      const type = getVariableType(variableDefinitions, name);
+      if (type === "date") out[name] = formatDateToDisplay(v);
+      else if (type === "month") out[name] = monthCodeToName(v);
+    });
+    return out;
+  }, [variables, variableDefinitions, varNames]);
 
   const previewHtml = useMemo(
     () =>
       templateContent
-        ? renderPreview(templateContent, variables)
+        ? renderPreview(templateContent, previewVariables)
         : null,
-    [templateContent, variables]
+    [templateContent, previewVariables]
   );
 
-  const update = (key: string, value: string) =>
+  const update = useCallback((key: string, value: string) => {
     setVariables((p) => ({ ...p, [key]: value }));
+  }, []);
+
+  const resolveLinkedVar = useCallback(
+    (preferred: string, fallbacks: string[]): string => {
+      const names = new Set(varNames);
+      if (names.has(preferred)) return preferred;
+      for (const name of fallbacks) {
+        if (names.has(name)) return name;
+      }
+      return preferred;
+    },
+    [varNames]
+  );
+
+  const handleAnafLookup = useCallback(
+    async (varName: string) => {
+      const def = getVariableDefinition(variableDefinitions, varName);
+      if (def?.type !== "cui") return;
+      const raw = def.linkedVariables ?? { denumire: "denumireFirma", sediu: "sediuSoc", regCom: "nrRegCom" };
+      const linked = {
+        denumire: resolveLinkedVar(raw.denumire, ["denumireFirma", "denumire"]),
+        sediu: resolveLinkedVar(raw.sediu, ["sediuSoc", "sediu"]),
+        regCom: resolveLinkedVar(raw.regCom, ["nrRegCom", "regCom"]),
+      };
+      const cui = variables[varName]?.trim();
+      if (!cui) return;
+      setAnafStatusByVar((p) => ({ ...p, [varName]: "loading" }));
+      setAnafErrorByVar((p) => ({ ...p, [varName]: null }));
+      try {
+        const res = await fetch("/api/anaf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cui }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          message?: string;
+          denumire?: string;
+          adresa?: string;
+          nrRegCom?: string;
+        };
+        if (!res.ok) {
+          setAnafErrorByVar((p) => ({ ...p, [varName]: data.message ?? "Eroare la căutare" }));
+          setAnafStatusByVar((p) => ({ ...p, [varName]: "error" }));
+          return;
+        }
+        setVariables((p) => ({
+          ...p,
+          [linked.denumire]: data.denumire ?? p[linked.denumire] ?? "",
+          [linked.sediu]: data.adresa ?? p[linked.sediu] ?? "",
+          [linked.regCom]: data.nrRegCom ?? p[linked.regCom] ?? "",
+        }));
+        setAnafStatusByVar((p) => ({ ...p, [varName]: "success" }));
+      } catch {
+        setAnafErrorByVar((p) => ({ ...p, [varName]: "Eroare rețea" }));
+        setAnafStatusByVar((p) => ({ ...p, [varName]: "error" }));
+      }
+    },
+    [variableDefinitions, variables, resolveLinkedVar]
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!templateId) return;
     setStatus("loading");
     setErrorMessage(null);
+    const payload: Record<string, string> = { ...variables };
+    varNames.forEach((name) => {
+      const v = variables[name];
+      if (v === undefined) return;
+      const type = getVariableType(variableDefinitions, name);
+      if (type === "date") payload[name] = formatDateToDisplay(v);
+      else if (type === "month") payload[name] = monthCodeToName(v);
+    });
     try {
       const res = await fetch("/api/contracts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateId, variables }),
+        body: JSON.stringify({ templateId, variables: payload }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -171,21 +267,24 @@ function ContractPageInner() {
 
         <div className="flex flex-col lg:flex-row gap-6">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full lg:max-w-sm">
-            {varNames.map((name) => (
-              <div key={name}>
-                <label htmlFor={name} className={labelClass}>
-                  {name}
-                </label>
-                <input
-                  id={name}
-                  type="text"
+            {varNames.map((name) => {
+              const type = getVariableType(variableDefinitions, name);
+              const definition = getVariableDefinition(variableDefinitions, name);
+              return (
+                <VariableInput
+                  key={name}
+                  name={name}
+                  type={type}
+                  definition={definition}
                   value={variables[name] ?? ""}
-                  onChange={(e) => update(name, e.target.value)}
-                  className={inputClass}
-                  placeholder={name}
+                  onChange={(value) => update(name, value)}
+                  anafStatus={type === "cui" ? (anafStatusByVar[name] ?? "idle") : undefined}
+                  anafError={type === "cui" ? (anafErrorByVar[name] ?? null) : undefined}
+                  onAnafLookup={type === "cui" ? () => handleAnafLookup(name) : undefined}
+                  disabled={status === "loading"}
                 />
-              </div>
-            ))}
+              );
+            })}
             {status === "error" && (
               <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
             )}

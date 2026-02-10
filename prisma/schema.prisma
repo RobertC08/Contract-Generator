@@ -7,12 +7,13 @@ datasource db {
 }
 
 model ContractTemplate {
-  id        String   @id @default(cuid())
-  name      String
-  content   String
-  version   Int
-  createdAt DateTime @default(now())
-  contracts Contract[]
+  id                   String   @id @default(cuid())
+  name                 String
+  content              String
+  version              Int
+  variableDefinitions  Json?
+  createdAt            DateTime @default(now())
+  contracts            Contract[]
 }
 
 model Contract {

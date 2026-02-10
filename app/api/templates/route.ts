@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import {
+  variableDefinitionsSchema,
+  type VariableDefinitions,
+} from "@/lib/contracts/variable-definitions";
 
 const createTemplateSchema = z.object({
   name: z.string().min(1, "Numele este obligatoriu"),
   content: z.string(),
+  variableDefinitions: variableDefinitionsSchema.optional(),
 });
 
 export async function GET() {
@@ -32,12 +37,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const data: { name: string; content: string; version: number; variableDefinitions?: VariableDefinitions } = {
+    name: parsed.data.name,
+    content: parsed.data.content,
+    version: 1,
+  };
+  if (parsed.data.variableDefinitions != null) {
+    data.variableDefinitions = parsed.data.variableDefinitions;
+  }
   const template = await prisma.contractTemplate.create({
-    data: {
-      name: parsed.data.name,
-      content: parsed.data.content,
-      version: 1,
-    },
+    data,
     select: { id: true, name: true, version: true },
   });
 

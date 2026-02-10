@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import {
+  variableDefinitionsSchema,
+  type VariableDefinitions,
+} from "@/lib/contracts/variable-definitions";
 
 const updateTemplateSchema = z.object({
   name: z.string().min(1, "Numele este obligatoriu"),
   content: z.string(),
+  variableDefinitions: variableDefinitionsSchema.optional(),
 });
 
 export async function GET(
@@ -14,7 +19,13 @@ export async function GET(
   const { id } = await params;
   const template = await prisma.contractTemplate.findUnique({
     where: { id },
-    select: { id: true, name: true, content: true, version: true },
+    select: {
+      id: true,
+      name: true,
+      content: true,
+      version: true,
+      variableDefinitions: true,
+    },
   });
   if (!template) {
     return NextResponse.json({ message: "Template negăsit" }, { status: 404 });
@@ -48,13 +59,22 @@ export async function PUT(
     return NextResponse.json({ message: "Template negăsit" }, { status: 404 });
   }
 
+  const updateData: {
+    name: string;
+    content: string;
+    version: number;
+    variableDefinitions?: VariableDefinitions;
+  } = {
+    name: parsed.data.name,
+    content: parsed.data.content,
+    version: existing.version + 1,
+  };
+  if (parsed.data.variableDefinitions !== undefined) {
+    updateData.variableDefinitions = parsed.data.variableDefinitions;
+  }
   const template = await prisma.contractTemplate.update({
     where: { id },
-    data: {
-      name: parsed.data.name,
-      content: parsed.data.content,
-      version: existing.version + 1,
-    },
+    data: updateData,
     select: { id: true, name: true, version: true },
   });
 
