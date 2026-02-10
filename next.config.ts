@@ -5,6 +5,7 @@ const projectRoot = process.cwd();
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium-min"],
+  turbopack: {},
   webpack: (config) => {
     config.context = projectRoot;
     config.resolve ??= {};
