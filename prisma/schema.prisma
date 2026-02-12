@@ -6,6 +6,23 @@ datasource db {
   provider  = "postgresql"
 }
 
+enum ContractStatus {
+  DRAFT
+  SENT
+  SIGNED
+}
+
+enum SignerRole {
+  teacher
+  student
+  guardian
+}
+
+enum AuthMethod {
+  otp
+  magic_link
+}
+
 model ContractTemplate {
   id                   String   @id @default(cuid())
   name                 String
@@ -17,10 +34,55 @@ model ContractTemplate {
 }
 
 model Contract {
-  id          String           @id @default(cuid())
-  templateId  String
-  template    ContractTemplate @relation(fields: [templateId], references: [id])
-  variables   Json
-  pdfUrl      String?
-  createdAt   DateTime         @default(now())
+  id             String           @id @default(cuid())
+  templateId     String
+  template       ContractTemplate @relation(fields: [templateId], references: [id])
+  variables      Json
+  pdfUrl         String?
+  status         ContractStatus   @default(DRAFT)
+  documentHash   String?
+  templateVersion Int?
+  createdAt      DateTime         @default(now())
+  signers        Signer[]
+  auditLogs      SignatureAuditLog[]
+}
+
+model Signer {
+  id             String    @id @default(cuid())
+  contractId     String
+  contract       Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  fullName       String
+  email          String
+  phone          String?
+  role           SignerRole @default(student)
+  signingOrder   Int        @default(0)
+  signedAt       DateTime?
+  token          String     @unique
+  tokenExpiresAt DateTime
+  otpCodes       SigningOtp[]
+  auditLogs      SignatureAuditLog[]
+}
+
+model SigningOtp {
+  id        String   @id @default(cuid())
+  signerId  String
+  signer    Signer   @relation(fields: [signerId], references: [id], onDelete: Cascade)
+  hashedCode String
+  expiresAt DateTime
+  usedAt    DateTime?
+}
+
+model SignatureAuditLog {
+  id           String     @id @default(cuid())
+  contractId   String
+  contract     Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  signerId     String
+  signer       Signer     @relation(fields: [signerId], references: [id], onDelete: Cascade)
+  ip           String?
+  userAgent    String?
+  device       String?
+  authMethod   AuthMethod
+  documentHash String?
+  contractVersion Int?
+  createdAt    DateTime   @default(now())
 }

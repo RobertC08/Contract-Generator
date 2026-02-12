@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { VariableInput } from "@/app/components/variable-input";
 
 const TEMPLATE_ID = "contract-prestari-servicii";
 
@@ -16,12 +17,19 @@ function escapeHtml(s: string): string {
 function renderPreview(templateHtml: string, variables: FormState): string {
   let out = templateHtml;
   for (const [key, value] of Object.entries(variables)) {
-    out = out.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), escapeHtml(String(value ?? "")));
+    const str = value != null ? String(value) : "";
+    const replacement =
+      typeof value === "string" && value.startsWith("data:image")
+        ? `<img src="${value.replace(/"/g, "&quot;")}" alt="Semnătură" class="signature-img" style="max-width: 200px; max-height: 100px; width: auto; height: auto;" />`
+        : escapeHtml(str);
+    out = out.replace(new RegExp(`\\{\\{\\{\\s*${key}\\s*\\}\\}\\}`, "g"), replacement);
+    out = out.replace(new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g"), replacement);
   }
+  out = out.replace(/\{\{\{[^}]+\}\}\}/g, "");
   out = out.replace(/\{\{[^}]+\}\}/g, "");
   out = out.replace(
     "</head>",
-    "<style>body { padding: 25mm; }</style></head>"
+    "<style>body { padding: 15mm; }</style></head>"
   );
   return out;
 }
@@ -49,6 +57,8 @@ type FormState = {
   beneficiarCont: string;
   beneficiarBanca: string;
   beneficiarReprezentant: string;
+  prestatorSignature: string;
+  beneficiarSignature: string;
   lunaInceput: string;
   anulInceput: string;
   dataIntrareVigoare: string;
@@ -76,6 +86,8 @@ const initial: FormState = {
   beneficiarCont: "",
   beneficiarBanca: "",
   beneficiarReprezentant: "",
+  prestatorSignature: "",
+  beneficiarSignature: "",
   lunaInceput: "",
   anulInceput: "",
   dataIntrareVigoare: "",
@@ -417,6 +429,12 @@ export function ContractForm() {
           )}
           <Field id="prestatorCont" label="Cont bancar" value={form.prestatorCont} onChange={(v) => update("prestatorCont", v)} placeholder="RO00XXXX..." />
           <Field id="prestatorBanca" label="Banca" value={form.prestatorBanca} onChange={(v) => update("prestatorBanca", v)} placeholder="ING Bank" />
+          <VariableInput
+            name="prestatorSignature"
+            type="signature"
+            value={form.prestatorSignature}
+            onChange={(v) => update("prestatorSignature", v)}
+          />
         </div>
       </section>
 
@@ -485,6 +503,12 @@ export function ContractForm() {
           )}
           <Field id="beneficiarCont" label="Cont bancar" value={form.beneficiarCont} onChange={(v) => update("beneficiarCont", v)} />
           <Field id="beneficiarBanca" label="Banca" value={form.beneficiarBanca} onChange={(v) => update("beneficiarBanca", v)} />
+          <VariableInput
+            name="beneficiarSignature"
+            type="signature"
+            value={form.beneficiarSignature}
+            onChange={(v) => update("beneficiarSignature", v)}
+          />
         </div>
       </section>
 

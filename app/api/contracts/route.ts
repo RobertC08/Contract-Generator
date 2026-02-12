@@ -8,18 +8,28 @@ import {
   TemplateRenderError,
   PdfGenerationError,
   StorageError,
+  ContractSignedError,
 } from "@/lib/contracts/errors";
 import { sourceToHtml, isHtmlContent, wrapFragmentInDocument } from "@/lib/contracts/source-to-html";
 
 export const runtime = "nodejs";
 
+const signerInputSchema = z.object({
+  fullName: z.string().min(1),
+  email: z.string().email(),
+  phone: z.string().optional(),
+  role: z.enum(["teacher", "student", "guardian"]).optional(),
+  signingOrder: z.number().int().min(0).optional(),
+});
+
 const createContractSchema = z.object({
   templateId: z.string().min(1),
   variables: z.record(z.string(), z.unknown()),
+  signers: z.array(signerInputSchema).min(1).optional(),
 });
 
 export type CreateContractResponse =
-  | { success: true; contractId: string; contract: unknown }
+  | { success: true; contractId: string; signingLinks: { signerId: string; email: string; signingLink: string }[] }
   | { success: false; message: string; code?: string };
 
 function errorToStatusAndBody(
@@ -36,6 +46,9 @@ function errorToStatusAndBody(
   }
   if (error instanceof StorageError) {
     return { status: 500, body: { success: false, message: error.message, code: "STORAGE_ERROR" } };
+  }
+  if (error instanceof ContractSignedError) {
+    return { status: 409, body: { success: false, message: error.message, code: "CONTRACT_SIGNED" } };
   }
   const message = error instanceof Error ? error.message : "Internal server error";
   return { status: 500, body: { success: false, message } };
@@ -89,24 +102,35 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { templateId, variables } = parsed.data;
+  const { templateId, variables, signers: signersInput } = parsed.data;
   const storageProvider = new LocalStorageProvider();
+  const signers = signersInput?.length
+    ? signersInput.map((s) => ({
+        fullName: s.fullName,
+        email: s.email,
+        phone: s.phone,
+        role: s.role ?? "student",
+        signingOrder: s.signingOrder,
+      }))
+    : [{ fullName: "Signer", email: "signer@example.com", role: "student" as const }];
 
   try {
-    const { contract, pdfBuffer } = await createContract({
+    const { contract, signers: signersWithLinks } = await createContract({
       prisma,
       storageProvider,
       templateId,
       variables,
+      signers,
     });
 
-    return new NextResponse(new Uint8Array(pdfBuffer), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": 'attachment; filename="contract.pdf"',
-        "X-Contract-Id": contract.id,
-      },
+    return NextResponse.json({
+      success: true,
+      contractId: contract.id,
+      signingLinks: signersWithLinks.map((s) => ({
+        signerId: s.id,
+        email: s.email,
+        signingLink: s.signingLink,
+      })),
     });
   } catch (error) {
     const { status, body: errorBody } = errorToStatusAndBody(error);

@@ -58,7 +58,7 @@ export function getVariableDefinition(
 export function getVariableType(
   defs: VariableDefinitions | null | undefined,
   name: string
-): "text" | "number" | "date" | "month" | "cui" {
+): "text" | "number" | "date" | "month" | "cui" | "signature" {
   const def = getVariableDefinition(defs, name);
   return def?.type ?? "text";
 }

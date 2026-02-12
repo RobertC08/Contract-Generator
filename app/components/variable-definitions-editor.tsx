@@ -13,6 +13,7 @@ const TYPE_LABELS: Record<VariableType, string> = {
   date: "Dată",
   month: "Lună",
   cui: "CUI",
+  signature: "Semnătură",
 };
 
 function defaultLinkedForCui(name: string): { denumire: string; sediu: string; regCom: string } {

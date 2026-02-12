@@ -1,11 +1,16 @@
 "use client";
 
+import { useRef, useEffect, useState } from "react";
 import type { VariableDefinition } from "@/lib/contracts/variable-definitions";
 import {
   LUNI,
   MONTH_CODES,
   getVariableLabel,
 } from "@/lib/contracts/variable-utils";
+import SignaturePad from "signature_pad";
+
+const SIGNATURE_WIDTH = 400;
+const SIGNATURE_HEIGHT = 200;
 
 const inputClass =
   "w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 text-sm";
@@ -13,7 +18,7 @@ const labelClass = "block text-sm font-medium text-zinc-700 dark:text-zinc-300 m
 
 export type VariableInputProps = {
   name: string;
-  type: "text" | "number" | "date" | "month" | "cui";
+  type: "text" | "number" | "date" | "month" | "cui" | "signature";
   definition?: VariableDefinition;
   value: string;
   onChange: (value: string) => void;
@@ -27,6 +32,104 @@ export type VariableInputProps = {
 function isValidCuiInput(cui: string): boolean {
   const digits = cui.replace(/\s/g, "").replace(/^RO/i, "").replace(/\D/g, "");
   return digits.length >= 6 && digits.length <= 10;
+}
+
+function SignaturePadInput({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const padRef = useRef<SignaturePad | null>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ratio = Math.max(window.devicePixelRatio ?? 1, 1);
+    canvas.width = SIGNATURE_WIDTH * ratio;
+    canvas.height = SIGNATURE_HEIGHT * ratio;
+    canvas.style.width = `${SIGNATURE_WIDTH}px`;
+    canvas.style.height = `${SIGNATURE_HEIGHT}px`;
+    const ctx = canvas.getContext("2d");
+    if (ctx) ctx.scale(ratio, ratio);
+    const pad = new SignaturePad(canvas, { penColor: "rgb(0, 0, 0)" });
+    padRef.current = pad;
+    const onEnd = () => {
+      if (!pad.isEmpty()) {
+        setIsDrawing(true);
+        onChangeRef.current(pad.toDataURL("image/png"));
+      }
+    };
+    pad.addEventListener("endStroke", onEnd);
+    return () => {
+      pad.removeEventListener("endStroke", onEnd);
+      pad.off();
+      padRef.current = null;
+    };
+  }, []);
+
+  const handleResign = () => {
+    onChange("");
+    setIsDrawing(false);
+  };
+
+  const showSavedImage = value && !isDrawing;
+
+  if (showSavedImage) {
+    return (
+      <div className="relative">
+        <img
+          src={value}
+          alt={label}
+          className="max-h-[200px] w-full object-contain bg-white dark:bg-zinc-900"
+        />
+        {!disabled && (
+          <button
+            type="button"
+            onClick={handleResign}
+            className="absolute top-1 right-1 rounded bg-zinc-200 dark:bg-zinc-600 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-300 dark:hover:bg-zinc-500"
+          >
+            Resemnare
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <canvas
+        ref={canvasRef}
+        className="block w-full bg-white dark:bg-zinc-900 touch-none"
+        style={{ width: SIGNATURE_WIDTH, height: SIGNATURE_HEIGHT }}
+      />
+      <p className="text-xs text-zinc-500 dark:text-zinc-400 px-2 py-1">
+        Semnați în casetă (puteți desena mai multe linii)
+      </p>
+      {!disabled && (
+        <div className="px-2 py-1 border-t border-zinc-200 dark:border-zinc-700">
+          <button
+            type="button"
+            onClick={() => {
+              padRef.current?.clear();
+            }}
+            className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
+          >
+            Șterge semnătura
+          </button>
+        </div>
+      )}
+    </>
+  );
 }
 
 export function VariableInput({
@@ -100,6 +203,22 @@ export function VariableInput({
             </option>
           ))}
         </select>
+      </div>
+    );
+  }
+
+  if (type === "signature") {
+    return (
+      <div className="space-y-1">
+        <label className={labelClass}>{label}</label>
+        <div className="rounded-lg border border-zinc-300 dark:border-zinc-600 overflow-hidden bg-white dark:bg-zinc-900">
+          <SignaturePadInput
+            label={label}
+            value={value}
+            onChange={onChange}
+            disabled={disabled}
+          />
+        </div>
       </div>
     );
   }

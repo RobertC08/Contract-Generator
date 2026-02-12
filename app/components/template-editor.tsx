@@ -2,11 +2,12 @@
 
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import TextAlign from "@tiptap/extension-text-align";
 import { useEffect, useRef } from "react";
 import type { VariableDefinition } from "@/lib/contracts/variable-definitions";
 import { Variable } from "@/app/components/tiptap-variable-extension";
 
-const VAR_PLACEHOLDER_RE = /\{\{(\w+)\}\}/g;
+const VAR_PLACEHOLDER_RE = /\{\{\{?(\w+)\}\}?\}/g;
 
 function htmlWithVariablesToChips(html: string): string {
   return html.replace(VAR_PLACEHOLDER_RE, (_, name) => {
@@ -29,9 +30,16 @@ function escapeHtmlAttr(s: string): string {
     .replace(/>/g, "&gt;");
 }
 
-function chipsHtmlToPlaceholders(html: string): string {
+function chipsHtmlToPlaceholders(
+  html: string,
+  variableDefinitions: VariableDefinition[] = []
+): string {
+  const defsByName = new Map(variableDefinitions.map((d) => [d.name, d]));
   const regex = /<span[^>]*data-variable="(\w+)"[^>]*>[\s\S]*?<\/span>/gi;
-  return html.replace(regex, (_, name) => `{{${name}}}`);
+  return html.replace(regex, (_, name) => {
+    const def = defsByName.get(name);
+    return def?.type === "signature" ? `{{{${name}}}}` : `{{${name}}}`;
+  });
 }
 
 const TYPE_LABELS: Record<VariableDefinition["type"], string> = {
@@ -40,6 +48,7 @@ const TYPE_LABELS: Record<VariableDefinition["type"], string> = {
   date: "Dată",
   month: "Lună",
   cui: "CUI",
+  signature: "Semnătură",
 };
 
 const PREDEFINED_VARS: { name: string; label: string }[] = [
@@ -76,7 +85,11 @@ export function TemplateEditor({
   const lastSentContentRef = useRef<string | null>(null);
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [StarterKit, Variable],
+    extensions: [
+      StarterKit,
+      TextAlign.configure({ types: ["paragraph", "heading"] }),
+      Variable,
+    ],
     content: htmlWithVariablesToChips(initialContent || DEFAULT_HTML),
     editorProps: {
       attributes: {
@@ -85,7 +98,7 @@ export function TemplateEditor({
       },
     },
     onUpdate: ({ editor }) => {
-      const html = chipsHtmlToPlaceholders(editor.getHTML());
+      const html = chipsHtmlToPlaceholders(editor.getHTML(), variableDefinitions);
       lastSentContentRef.current = html;
       onContentChange(html);
     },
@@ -149,6 +162,55 @@ export function TemplateEditor({
           }`}
         >
           Listă
+        </button>
+        <span className="text-zinc-400 dark:text-zinc-500 text-xs mx-1">|</span>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().setTextAlign("left").run()}
+          className={`rounded px-2 py-1 text-sm ${
+            editor.isActive({ textAlign: "left" })
+              ? "bg-zinc-300 dark:bg-zinc-600 text-zinc-900 dark:text-zinc-100"
+              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          }`}
+          title="Aliniere stânga"
+        >
+          Stg
+        </button>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().setTextAlign("center").run()}
+          className={`rounded px-2 py-1 text-sm ${
+            editor.isActive({ textAlign: "center" })
+              ? "bg-zinc-300 dark:bg-zinc-600 text-zinc-900 dark:text-zinc-100"
+              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          }`}
+          title="Aliniere centru"
+        >
+          Centru
+        </button>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().setTextAlign("right").run()}
+          className={`rounded px-2 py-1 text-sm ${
+            editor.isActive({ textAlign: "right" })
+              ? "bg-zinc-300 dark:bg-zinc-600 text-zinc-900 dark:text-zinc-100"
+              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          }`}
+          title="Aliniere dreapta"
+        >
+          Dr
+        </button>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().setTextAlign("justify").run()}
+          className={`rounded px-2 py-1 text-sm ${
+            editor.isActive({ textAlign: "justify" })
+              ? "bg-zinc-300 dark:bg-zinc-600 text-zinc-900 dark:text-zinc-100"
+              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          }`}
+          title="Aliniere justificată"
+        >
+          Just
         </button>
         <div className="ml-2 border-l border-zinc-300 dark:border-zinc-600 pl-2 relative">
           <button

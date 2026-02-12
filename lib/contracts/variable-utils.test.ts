@@ -15,6 +15,7 @@ const defs: VariableDefinition[] = [
   { name: "prestatorCUI", type: "cui", linkedVariables: { denumire: "prestatorNume", sediu: "prestatorSediu", regCom: "prestatorRegCom" } },
   { name: "dataIntrareVigoare", type: "date" },
   { name: "lunaInceput", type: "month", label: "Luna început" },
+  { name: "prestatorSignature", type: "signature" },
 ];
 
 describe("humanizeVariableName", () => {
@@ -52,6 +53,7 @@ describe("getVariableType", () => {
     expect(getVariableType(defs, "prestatorCUI")).toBe("cui");
     expect(getVariableType(defs, "dataIntrareVigoare")).toBe("date");
     expect(getVariableType(defs, "lunaInceput")).toBe("month");
+    expect(getVariableType(defs, "prestatorSignature")).toBe("signature");
   });
 
   it("returns text for unknown variable", () => {

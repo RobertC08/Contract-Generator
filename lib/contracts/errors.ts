@@ -29,3 +29,11 @@ export class StorageError extends Error {
     Object.setPrototypeOf(this, StorageError.prototype);
   }
 }
+
+export class ContractSignedError extends Error {
+  constructor(message: string = "Contract is signed and cannot be modified") {
+    super(message);
+    this.name = "ContractSignedError";
+    Object.setPrototypeOf(this, ContractSignedError.prototype);
+  }
+}

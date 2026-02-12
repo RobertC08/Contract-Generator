@@ -89,6 +89,12 @@ export default function TemplatesPage() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <Link
+                    href={`/templates/${encodeURIComponent(t.id)}/contracts`}
+                    className="rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  >
+                    Contracte
+                  </Link>
+                  <Link
                     href={`/contract?templateId=${encodeURIComponent(t.id)}`}
                     className="rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   >

@@ -32,8 +32,8 @@ export function sourceToHtml(source: string): string {
   <meta charset="utf-8">
   <title>Contract</title>
   <style>
-    @page { size: A4; margin: 25mm; }
-    body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.4; padding: 25mm; color: #222; }
+    @page { size: A4; margin: 15mm; }
+    body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.4; padding: 15mm; color: #222; }
     .underline { border-bottom: 1px solid #222; display: inline-block; min-width: 80px; }
   </style>
 </head>
@@ -72,8 +72,8 @@ const DOCUMENT_SHELL = `<!DOCTYPE html>
   <meta charset="utf-8">
   <title>Contract</title>
   <style>
-    @page { size: A4; margin: 25mm; }
-    body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.4; padding: 25mm; color: #222; }
+    @page { size: A4; margin: 15mm; }
+    body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.4; padding: 15mm; color: #222; }
     .underline { border-bottom: 1px solid #222; display: inline-block; min-width: 80px; }
   </style>
 </head>

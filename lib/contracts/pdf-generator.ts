@@ -59,9 +59,9 @@ const pdfOptions = {
   format: "A4" as const,
   printBackground: true,
   margin: {
-    top: "25mm",
-    right: "25mm",
-    bottom: "25mm",
-    left: "25mm",
+    top: "15mm",
+    right: "15mm",
+    bottom: "15mm",
+    left: "15mm",
   },
 };

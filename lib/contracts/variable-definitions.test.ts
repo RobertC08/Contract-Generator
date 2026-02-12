@@ -11,6 +11,11 @@ describe("variableDefinitionSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts signature type", () => {
+    const result = variableDefinitionSchema.safeParse({ name: "prestatorSignature", type: "signature" });
+    expect(result.success).toBe(true);
+  });
+
   it("accepts valid definition with label", () => {
     const result = variableDefinitionSchema.safeParse({
       name: "data_contract",
