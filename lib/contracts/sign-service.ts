@@ -124,6 +124,7 @@ export type SubmitSignatureParams = {
   signatureVariableName: string;
   ip: string | null;
   userAgent: string | null;
+  deviceSignature: string | null;
   otpClaim: string;
 };
 
@@ -135,6 +136,7 @@ export async function submitSignature({
   signatureVariableName,
   ip,
   userAgent,
+  deviceSignature,
   otpClaim,
 }: SubmitSignatureParams): Promise<{ success: true } | { success: false; message: string }> {
   if (!consent) return { success: false, message: "Consent required" };
@@ -166,6 +168,7 @@ export async function submitSignature({
         ip,
         userAgent,
         device: parseDevice(userAgent ?? ""),
+        deviceSignature: deviceSignature ?? undefined,
         authMethod: "otp",
         documentHash: signer.contract.documentHash ?? undefined,
         contractVersion: signer.contract.templateVersion ?? undefined,

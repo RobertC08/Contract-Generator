@@ -48,6 +48,7 @@ export async function GET(
       <td>${escapeHtml(log.signer.role)}</td>
       <td>${escapeHtml(log.ip ?? "—")}</td>
       <td>${escapeHtml(log.device ?? "—")}</td>
+      <td>${escapeHtml(log.deviceSignature ?? "—")}</td>
       <td>${escapeHtml(log.authMethod)}</td>
       <td>${escapeHtml(log.documentHash ?? "—")}</td>
     </tr>`
@@ -101,7 +102,7 @@ export async function GET(
 
   <div class="section">
     <h2>Jurnal evenimente (audit trail)</h2>
-    <p>Fiecare înregistrare corespunde unei acțiuni de semnare: identitate, IP, dispozitiv, metodă de autentificare, hash document.</p>
+    <p>Fiecare înregistrare corespunde unei acțiuni de semnare: identitate, IP, dispozitiv, semnătură dispozitiv, metodă de autentificare, hash document.</p>
     <table>
       <thead>
         <tr>
@@ -111,6 +112,7 @@ export async function GET(
           <th>Rol</th>
           <th>IP</th>
           <th>Dispozitiv</th>
+          <th>Semnătură dispozitiv</th>
           <th>Autentificare</th>
           <th>Hash document</th>
         </tr>

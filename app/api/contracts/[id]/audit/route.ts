@@ -54,6 +54,7 @@ export async function GET(
       ip: log.ip,
       userAgent: log.userAgent,
       device: log.device,
+      deviceSignature: log.deviceSignature,
       authMethod: log.authMethod,
       documentHash: log.documentHash,
       contractVersion: log.contractVersion,

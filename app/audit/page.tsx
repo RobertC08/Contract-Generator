@@ -27,6 +27,7 @@ type AuditData = {
     signerRole: string;
     ip: string | null;
     device: string | null;
+    deviceSignature: string | null;
     authMethod: string;
     documentHash: string | null;
   }>;
@@ -173,7 +174,7 @@ function AuditPageInner() {
                     {data.auditLogs.map((log, i) => (
                       <li key={i} className="border-l-2 border-zinc-300 dark:border-zinc-600 pl-3 py-1">
                         <span className="font-medium">{log.signerName}</span> · {formatDate(log.createdAt)}<br />
-                        <span className="text-xs text-zinc-500">IP: {log.ip ?? "—"} · {log.device ?? "—"} · Autentificare: {log.authMethod}</span>
+                        <span className="text-xs text-zinc-500">IP: {log.ip ?? "—"} · {log.device ?? "—"} · Semnătură dispozitiv: {log.deviceSignature ?? "—"} · Autentificare: {log.authMethod}</span>
                       </li>
                     ))}
                   </ul>

@@ -1,9 +1,15 @@
+import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSignerByToken, submitSignature } from "@/lib/contracts/sign-service";
 import { regenerateContractPdf } from "@/lib/contracts/contract-service";
 import { LocalStorageProvider } from "@/lib/storage/storage-provider";
+
+function computeDeviceSignature(userAgent: string | null, ip: string | null): string {
+  const payload = [userAgent ?? "", ip ?? ""].join("|");
+  return createHash("sha256").update(payload).digest("hex").slice(0, 16);
+}
 
 export const runtime = "nodejs";
 
@@ -35,6 +41,7 @@ export async function POST(request: NextRequest) {
   const ip = forwarded?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? null;
   const userAgent = request.headers.get("user-agent") ?? null;
 
+  const deviceSignature = computeDeviceSignature(userAgent, ip);
   const result = await submitSignature({
     prisma,
     signerId: signer.id,
@@ -43,6 +50,7 @@ export async function POST(request: NextRequest) {
     signatureVariableName,
     ip,
     userAgent,
+    deviceSignature,
     otpClaim: claim,
   });
 

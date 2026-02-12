@@ -73,16 +73,17 @@ model SigningOtp {
 }
 
 model SignatureAuditLog {
-  id           String     @id @default(cuid())
-  contractId   String
-  contract     Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  signerId     String
-  signer       Signer     @relation(fields: [signerId], references: [id], onDelete: Cascade)
-  ip           String?
-  userAgent    String?
-  device       String?
-  authMethod   AuthMethod
-  documentHash String?
+  id              String     @id @default(cuid())
+  contractId      String
+  contract        Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  signerId        String
+  signer          Signer     @relation(fields: [signerId], references: [id], onDelete: Cascade)
+  ip              String?
+  userAgent       String?
+  device          String?
+  deviceSignature String?
+  authMethod      AuthMethod
+  documentHash    String?
   contractVersion Int?
-  createdAt    DateTime   @default(now())
+  createdAt       DateTime   @default(now())
 }

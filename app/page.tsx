@@ -26,6 +26,7 @@ type Dashboard = {
     signerName: string;
     signerEmail: string;
     device: string | null;
+    deviceSignature: string | null;
     authMethod: string;
     contractId: string;
   }>;
@@ -241,6 +242,7 @@ export default function Home() {
                       <tr className="text-left text-stone-500 dark:text-stone-400 border-b border-stone-200 dark:border-stone-800">
                         <th className="px-4 py-2 font-medium">Semnatar</th>
                         <th className="px-4 py-2 font-medium">Dispozitiv</th>
+                        <th className="px-4 py-2 font-medium">Semn. dispozitiv</th>
                         <th className="px-4 py-2 font-medium">Data</th>
                         <th className="px-4 py-2 font-medium w-0" />
                       </tr>
@@ -253,6 +255,7 @@ export default function Home() {
                             <span className="text-stone-500 dark:text-stone-400 font-normal"> · {a.signerEmail}</span>
                           </td>
                           <td className="px-4 py-2 text-stone-600 dark:text-stone-400">{a.device ?? "—"}</td>
+                          <td className="px-4 py-2 text-stone-600 dark:text-stone-400 font-mono text-xs">{a.deviceSignature ?? "—"}</td>
                           <td className="px-4 py-2 text-stone-600 dark:text-stone-400">{formatDate(a.createdAt)}</td>
                           <td className="px-4 py-2">
                             <Link
