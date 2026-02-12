@@ -34,17 +34,18 @@ model ContractTemplate {
 }
 
 model Contract {
-  id             String           @id @default(cuid())
-  templateId     String
-  template       ContractTemplate @relation(fields: [templateId], references: [id])
-  variables      Json
-  pdfUrl         String?
-  status         ContractStatus   @default(DRAFT)
-  documentHash   String?
-  templateVersion Int?
-  createdAt      DateTime         @default(now())
-  signers        Signer[]
-  auditLogs      SignatureAuditLog[]
+  id               String           @id @default(cuid())
+  templateId       String
+  template         ContractTemplate @relation(fields: [templateId], references: [id])
+  variables        Json
+  pdfUrl           String?
+  status           ContractStatus   @default(DRAFT)
+  documentHash     String?
+  templateVersion  Int?
+  draftEditToken   String?          @unique
+  createdAt        DateTime         @default(now())
+  signers          Signer[]
+  auditLogs        SignatureAuditLog[]
 }
 
 model Signer {

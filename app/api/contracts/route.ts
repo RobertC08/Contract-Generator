@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createContract } from "@/lib/contracts/contract-service";
+import { createContract, createShareableDraft } from "@/lib/contracts/contract-service";
 import { prisma } from "@/lib/db";
 import { LocalStorageProvider } from "@/lib/storage/storage-provider";
 import {
@@ -24,8 +24,9 @@ const signerInputSchema = z.object({
 
 const createContractSchema = z.object({
   templateId: z.string().min(1),
-  variables: z.record(z.string(), z.unknown()),
+  variables: z.record(z.string(), z.unknown()).optional(),
   signers: z.array(signerInputSchema).min(1).optional(),
+  shareableLink: z.boolean().optional(),
 });
 
 export type CreateContractResponse =
@@ -67,9 +68,17 @@ export async function GET(request: NextRequest) {
   if (!template) {
     return NextResponse.json({ message: "Template not found" }, { status: 404 });
   }
-  const content = isHtmlContent(template.content)
+  let content = isHtmlContent(template.content)
     ? wrapFragmentInDocument(template.content)
     : sourceToHtml(template.content);
+  const defs = template.variableDefinitions as Array<{ name: string; type?: string }> | null;
+  if (defs?.length) {
+    const regex = /<span[^>]*data-variable="(\w+)"[^>]*>[\s\S]*?<\/span>/gi;
+    content = content.replace(regex, (_, name: string) => {
+      const def = defs.find((d) => d.name === name);
+      return def?.type === "signature" ? `{{{${name}}}}` : `{{${name}}}`;
+    });
+  }
   return NextResponse.json({
     content,
     variableDefinitions: template.variableDefinitions ?? undefined,
@@ -102,7 +111,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { templateId, variables, signers: signersInput } = parsed.data;
+  const { templateId, variables: vars, signers: signersInput, shareableLink } = parsed.data;
+
+  if (shareableLink) {
+    try {
+      const { contract, fillToken } = await createShareableDraft({ prisma, templateId });
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+      const fillLink = baseUrl ? `${baseUrl}/contract/fill/${fillToken}` : `/contract/fill/${fillToken}`;
+      return NextResponse.json({
+        success: true,
+        contractId: contract.id,
+        fillLink,
+        shareableLink: true,
+      });
+    } catch (error) {
+      const { status, body: errorBody } = errorToStatusAndBody(error);
+      return NextResponse.json(errorBody, { status });
+    }
+  }
+
+  const variables = vars ?? {};
   const storageProvider = new LocalStorageProvider();
   const signers = signersInput?.length
     ? signersInput.map((s) => ({

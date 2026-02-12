@@ -181,7 +181,7 @@ export default function SignPage() {
             <iframe
               title="Document"
               src={pdfPreviewUrl}
-              className="w-full h-[400px] border-0"
+              className="w-full min-h-[65vh] h-[70vh] border-0"
             />
           </div>
         )}

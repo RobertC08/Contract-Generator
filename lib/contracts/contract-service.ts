@@ -152,6 +152,51 @@ export async function createContract({
   return { contract, pdfBuffer, signers: signersWithLinks };
 }
 
+export type CreateShareableDraftParams = {
+  prisma: PrismaClient;
+  templateId: string;
+};
+
+export type CreateShareableDraftResult = {
+  contract: Contract;
+  fillToken: string;
+};
+
+export async function createShareableDraft({
+  prisma,
+  templateId,
+}: CreateShareableDraftParams): Promise<CreateShareableDraftResult> {
+  const template = await prisma.contractTemplate.findUnique({
+    where: { id: templateId },
+  });
+  if (!template) throw new TemplateNotFoundError(templateId);
+
+  const fillToken = randomBytes(32).toString("base64url");
+  const tokenExpiresAt = new Date(Date.now() + SIGNING_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
+  const contract = await prisma.contract.create({
+    data: {
+      templateId,
+      variables: {},
+      status: "DRAFT",
+      pdfUrl: null,
+      documentHash: null,
+      templateVersion: template.version,
+      draftEditToken: fillToken,
+      signers: {
+        create: {
+          fullName: "—",
+          email: "completare@placeholder.local",
+          role: "student",
+          signingOrder: 0,
+          token: generateSigningToken(),
+          tokenExpiresAt,
+        },
+      },
+    },
+  });
+  return { contract, fillToken };
+}
+
 export type UpdateDraftContractParams = {
   prisma: PrismaClient;
   storageProvider: StorageProvider;

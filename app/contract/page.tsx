@@ -71,6 +71,9 @@ function ContractPageInner() {
   const [signerRole, setSignerRole] = useState<"student" | "teacher" | "guardian">("student");
   const [signingLinks, setSigningLinks] = useState<{ signerId: string; email: string; signingLink: string }[] | null>(null);
   const [createdContractId, setCreatedContractId] = useState<string | null>(null);
+  const [fillLink, setFillLink] = useState<string | null>(null);
+  const [shareableStatus, setShareableStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [shareableError, setShareableError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!templateId) return;
@@ -231,6 +234,32 @@ function ContractPageInner() {
     void navigator.clipboard.writeText(fullLink);
   };
 
+  const handleShareableLink = useCallback(async () => {
+    if (!templateId) return;
+    setShareableStatus("loading");
+    setShareableError(null);
+    setFillLink(null);
+    try {
+      const res = await fetch("/api/contracts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId, shareableLink: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setShareableError(data.message ?? "Eroare la generare link");
+        setShareableStatus("error");
+        return;
+      }
+      const link = data.fillLink ?? (typeof window !== "undefined" ? `${window.location.origin}/contract/fill/${data.fillToken}` : "");
+      setFillLink(link);
+      setShareableStatus("idle");
+    } catch {
+      setShareableError("Eroare de rețea");
+      setShareableStatus("error");
+    }
+  }, [templateId]);
+
   if (!templateId) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
@@ -348,6 +377,28 @@ function ContractPageInner() {
                   <option value="teacher">Profesor</option>
                 </select>
               </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleShareableLink}
+                disabled={shareableStatus === "loading"}
+                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 py-2.5 font-medium hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-50 text-sm"
+              >
+                {shareableStatus === "loading" ? "Se generează…" : "Generează link partajabil"}
+              </button>
+              {fillLink && (
+                <div className="rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
+                  <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Link pentru completare (trimite persoanei)</p>
+                  <div className="flex gap-2">
+                    <input readOnly value={fillLink} className="flex-1 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs text-zinc-700 dark:text-zinc-300" />
+                    <button type="button" onClick={() => copySigningLink(fillLink)} className="rounded bg-zinc-200 dark:bg-zinc-600 px-2 py-1.5 text-xs font-medium">Copiază</button>
+                  </div>
+                </div>
+              )}
+              {shareableStatus === "error" && shareableError && (
+                <p className="text-sm text-red-600 dark:text-red-400">{shareableError}</p>
+              )}
             </div>
             {status === "error" && (
               <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
