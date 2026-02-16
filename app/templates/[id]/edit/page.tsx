@@ -236,7 +236,7 @@ export default function EditTemplatePage() {
               <button
                 type="button"
                 onClick={handleExtractFromDocx}
-                disabled={extractLoading || status === "loading"}
+                disabled={extractLoading || status === "saving"}
                 className="rounded-lg border border-zinc-300 dark:border-zinc-600 px-2 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
               >
                 {extractLoading ? "Se extrag…" : "Extrage variabile din DOCX"}
