@@ -25,7 +25,7 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* DOCX preview: fit width, no horizontal scroll (especially on mobile) */
+/* DOCX preview: desktop */
 .docx-wrapper {
   width: 100%;
   max-width: 100%;
@@ -41,43 +41,60 @@ body {
   width: 100% !important;
   box-sizing: border-box !important;
 }
-/* Override docx-preview default 96px padding: smaller on mobile */
 .docx-wrapper section[class*="docx-contract-preview"],
 .docx-wrapper section.docx-contract-preview {
   padding: 24px !important;
 }
+
+/* DOCX preview: mobile – single column, scale to fit, centered, no clipping */
 @media (max-width: 640px) {
   .docx-wrapper {
     width: 100% !important;
-    overflow-x: hidden !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 4px !important;
+    box-sizing: border-box !important;
   }
-  .docx-wrapper [class*="-wrapper"],
+  /* docx-preview renders ~624px doc; fixed width + zoom scales it; margin centers in viewport */
+  .docx-wrapper [class*="-wrapper"] {
+    width: 624px !important;
+    min-width: 624px !important;
+    max-width: none !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    zoom: 0.5;
+    -webkit-text-size-adjust: 100%;
+    padding: 12px 16px !important;
+    box-sizing: border-box !important;
+  }
   .docx-wrapper [class*="-wrapper"] section {
     width: 100% !important;
     max-width: 100% !important;
-  }
-  /* Scale entire document to fit viewport (docx-preview uses ~624px width); zoom reduces layout size too */
-  .docx-wrapper [class*="-wrapper"] {
-    padding-left: 8px !important;
-    padding-right: 8px !important;
-    zoom: 0.55;
-    -webkit-text-size-adjust: 100%;
+    box-sizing: border-box !important;
   }
   .docx-wrapper section[class*="docx-contract-preview"],
   .docx-wrapper section.docx-contract-preview {
-    padding: 12px !important;
+    padding: 20px 16px !important;
   }
   .docx-wrapper [class*="-wrapper"] * {
-    line-height: 1.35 !important;
+    line-height: 1.4 !important;
+    box-sizing: border-box !important;
   }
 }
-@media (min-width: 401px) and (max-width: 640px) {
+@media (min-width: 381px) and (max-width: 640px) {
+  .docx-wrapper [class*="-wrapper"] {
+    zoom: 0.56;
+  }
+}
+@media (min-width: 421px) and (max-width: 640px) {
   .docx-wrapper [class*="-wrapper"] {
     zoom: 0.62;
   }
 }
 @media (min-width: 501px) and (max-width: 640px) {
   .docx-wrapper [class*="-wrapper"] {
-    zoom: 0.72;
+    zoom: 0.7;
   }
 }
