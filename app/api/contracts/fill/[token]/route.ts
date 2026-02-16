@@ -93,6 +93,16 @@ export async function GET(
       }
     }
 
+    let signingLink: string | null = null;
+    const signers = contract.signers as Array<{ token: string }>;
+    if (signers?.length) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+      const firstSigner = signers[0];
+      if (firstSigner?.token) {
+        signingLink = baseUrl ? `${baseUrl}/sign/${firstSigner.token}` : `/sign/${firstSigner.token}`;
+      }
+    }
+
     return NextResponse.json({
       contractId: contract.id,
       templateName: template.name,
@@ -103,6 +113,7 @@ export async function GET(
       dropdownOptions,
       dropdownSiblings,
       varOrder,
+      signingLink,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Eroare la încărcare";

@@ -165,6 +165,7 @@ export default function ContractFillPage() {
           data.dropdownSiblings && typeof data.dropdownSiblings === "object" ? data.dropdownSiblings : {}
         );
         setVarOrder(Array.isArray(data.varOrder) ? data.varOrder : []);
+        setSigningLink(data.signingLink ?? null);
       })
       .catch((e) => {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : "Eroare la încărcare");
