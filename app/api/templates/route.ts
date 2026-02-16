@@ -4,11 +4,17 @@ import type { VariableDefinitions } from "@/lib/contracts/variable-definitions";
 import { variableDefinitionsSchema } from "@/lib/contracts/variable-definitions";
 
 export async function GET() {
-  const templates = await prisma.contractTemplate.findMany({
-    orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, version: true, createdAt: true },
-  });
-  return NextResponse.json(templates);
+  try {
+    const templates = await prisma.contractTemplate.findMany({
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true, version: true, createdAt: true },
+    });
+    return NextResponse.json(templates);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Eroare la încărcare";
+    console.error("[api/templates]", err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {

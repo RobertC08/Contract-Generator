@@ -47,6 +47,14 @@ body {
   padding: 24px !important;
 }
 @media (max-width: 640px) {
+  .docx-wrapper {
+    width: 100% !important;
+  }
+  .docx-wrapper [class*="-wrapper"],
+  .docx-wrapper [class*="-wrapper"] section {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
   .docx-wrapper [class*="-wrapper"] {
     padding-left: 8px !important;
     padding-right: 8px !important;
@@ -54,5 +62,12 @@ body {
   .docx-wrapper section[class*="docx-contract-preview"],
   .docx-wrapper section.docx-contract-preview {
     padding: 12px !important;
+  }
+  /* Slightly smaller font on mobile for better fit */
+  .docx-wrapper [class*="-wrapper"] {
+    font-size: 87.5% !important;
+  }
+  .docx-wrapper [class*="-wrapper"] * {
+    line-height: 1.35 !important;
   }
 }
