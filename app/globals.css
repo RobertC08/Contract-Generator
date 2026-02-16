@@ -49,25 +49,35 @@ body {
 @media (max-width: 640px) {
   .docx-wrapper {
     width: 100% !important;
+    overflow-x: hidden !important;
   }
   .docx-wrapper [class*="-wrapper"],
   .docx-wrapper [class*="-wrapper"] section {
     width: 100% !important;
     max-width: 100% !important;
   }
+  /* Scale entire document to fit viewport (docx-preview uses ~624px width); zoom reduces layout size too */
   .docx-wrapper [class*="-wrapper"] {
     padding-left: 8px !important;
     padding-right: 8px !important;
+    zoom: 0.55;
+    -webkit-text-size-adjust: 100%;
   }
   .docx-wrapper section[class*="docx-contract-preview"],
   .docx-wrapper section.docx-contract-preview {
     padding: 12px !important;
   }
-  /* Slightly smaller font on mobile for better fit */
-  .docx-wrapper [class*="-wrapper"] {
-    font-size: 87.5% !important;
-  }
   .docx-wrapper [class*="-wrapper"] * {
     line-height: 1.35 !important;
+  }
+}
+@media (min-width: 401px) and (max-width: 640px) {
+  .docx-wrapper [class*="-wrapper"] {
+    zoom: 0.62;
+  }
+}
+@media (min-width: 501px) and (max-width: 640px) {
+  .docx-wrapper [class*="-wrapper"] {
+    zoom: 0.72;
   }
 }
