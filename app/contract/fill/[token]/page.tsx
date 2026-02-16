@@ -165,7 +165,6 @@ export default function ContractFillPage() {
           data.dropdownSiblings && typeof data.dropdownSiblings === "object" ? data.dropdownSiblings : {}
         );
         setVarOrder(Array.isArray(data.varOrder) ? data.varOrder : []);
-        setSigningLink(data.signingLink ?? null);
       })
       .catch((e) => {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : "Eroare la încărcare");
@@ -357,7 +356,7 @@ export default function ContractFillPage() {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-3 sm:p-6">
         <p className="text-zinc-500 text-sm">Link invalid.</p>
       </div>
     );
@@ -365,7 +364,7 @@ export default function ContractFillPage() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-3 sm:p-6">
         <p className="text-red-600 dark:text-red-400 text-sm">{loadError}</p>
         <Link href="/" className="mt-2 inline-block text-sm text-zinc-600 dark:text-zinc-400 hover:underline">Înapoi</Link>
       </div>
@@ -374,7 +373,7 @@ export default function ContractFillPage() {
 
   if (!templateName) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-3 sm:p-6 flex items-center justify-center">
         <p className="text-zinc-500 text-sm">Se încarcă…</p>
       </div>
     );
@@ -422,7 +421,7 @@ export default function ContractFillPage() {
 
   if (step === "read") {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-3 sm:p-6">
         <main className="w-full max-w-4xl mx-auto">
           <Stepper />
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-1">
@@ -437,7 +436,7 @@ export default function ContractFillPage() {
                 (readPreviewRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
                 setReadContainerReady(!!el);
               }}
-              className="min-h-[420px] overflow-auto p-4 docx-wrapper bg-white text-zinc-900"
+              className="min-h-[260px] sm:min-h-[420px] max-h-[50vh] sm:max-h-[70vh] overflow-auto p-2 sm:p-4 docx-wrapper bg-white text-zinc-900"
               style={{ maxHeight: "70vh" }}
             />
             {readPreviewStatus === "loading" && (
@@ -463,7 +462,7 @@ export default function ContractFillPage() {
 
   if (step === "verify") {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-3 sm:p-6">
         <main className="w-full max-w-4xl mx-auto">
           <Stepper />
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-1">
@@ -478,7 +477,7 @@ export default function ContractFillPage() {
                 (verifyPreviewRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
                 setVerifyContainerReady(!!el);
               }}
-              className="min-h-[420px] overflow-auto p-4 docx-wrapper bg-white text-zinc-900"
+              className="min-h-[260px] sm:min-h-[420px] max-h-[50vh] sm:max-h-[70vh] overflow-auto p-2 sm:p-4 docx-wrapper bg-white text-zinc-900"
               style={{ maxHeight: "70vh" }}
             />
             {verifyPreviewStatus === "loading" && (
@@ -514,7 +513,7 @@ export default function ContractFillPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-3 sm:p-6">
       <main className="w-full max-w-2xl mx-auto">
         <Stepper />
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-1">

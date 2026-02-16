@@ -161,7 +161,7 @@ export default function SignPage() {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-3 sm:p-6 flex items-center justify-center">
         <p className="text-zinc-600 dark:text-zinc-400">Link invalid.</p>
       </div>
     );
@@ -169,7 +169,7 @@ export default function SignPage() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6 flex flex-col items-center justify-center gap-4">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-3 sm:p-6 flex flex-col items-center justify-center gap-4">
         <p className="text-zinc-600 dark:text-zinc-400">{loadError}</p>
         <Link href="/" className="text-sm text-zinc-900 dark:text-zinc-100 underline">
           Înapoi
@@ -180,7 +180,7 @@ export default function SignPage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-3 sm:p-6 flex items-center justify-center">
         <p className="text-zinc-500 dark:text-zinc-400 text-sm">Se încarcă…</p>
       </div>
     );
@@ -221,7 +221,7 @@ export default function SignPage() {
 
   if (submitStatus === "success") {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-3 sm:p-6">
         <main className="w-full max-w-4xl mx-auto">
           <Stepper allComplete />
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-1">
@@ -241,13 +241,13 @@ export default function SignPage() {
                 Descarcă DOCX
               </a>
             </div>
-            <div className="p-4">
+            <div className="p-2 sm:p-4">
               <div
                 ref={(el) => {
                   (previewRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
                   setFinalPreviewReady(!!el);
                 }}
-                className="min-h-[420px] overflow-auto p-4 docx-wrapper bg-white text-zinc-900"
+                className="min-h-[260px] sm:min-h-[420px] max-h-[50vh] sm:max-h-[70vh] overflow-auto p-2 sm:p-4 docx-wrapper bg-white text-zinc-900"
                 style={{ maxHeight: "70vh" }}
               />
               {previewStatus === "loading" && (
@@ -267,7 +267,7 @@ export default function SignPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-3 sm:p-6">
       <main className="max-w-2xl mx-auto space-y-6">
         <Stepper />
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">

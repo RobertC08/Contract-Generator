@@ -75,12 +75,12 @@ export async function GET() {
     recentAudits: recentAudits.map((a) => ({
       id: a.id,
       createdAt: a.createdAt,
-      signerName: a.signer?.fullName ?? "—",
-      signerEmail: a.signer?.email ?? "—",
+      signerName: a.signer.fullName,
+      signerEmail: a.signer.email,
       device: a.device,
       deviceSignature: a.deviceSignature,
       authMethod: a.authMethod,
-      contractId: a.contract?.id ?? "—",
+      contractId: a.contract.id,
     })),
   });
 }

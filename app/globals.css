@@ -24,3 +24,35 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* DOCX preview: fit width, no horizontal scroll (especially on mobile) */
+.docx-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+.docx-wrapper [class*="-wrapper"] {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+.docx-wrapper [class*="-wrapper"] section {
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+/* Override docx-preview default 96px padding: smaller on mobile */
+.docx-wrapper section[class*="docx-contract-preview"],
+.docx-wrapper section.docx-contract-preview {
+  padding: 24px !important;
+}
+@media (max-width: 640px) {
+  .docx-wrapper [class*="-wrapper"] {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+  .docx-wrapper section[class*="docx-contract-preview"],
+  .docx-wrapper section.docx-contract-preview {
+    padding: 12px !important;
+  }
+}
