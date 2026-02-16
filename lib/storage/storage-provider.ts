@@ -4,6 +4,7 @@ import path from "path";
 
 export interface StorageProvider {
   save(key: string, buffer: Buffer): Promise<string>;
+  read?(urlOrKey: string): Promise<Buffer>;
 }
 
 const LOCAL_CONTRACTS_DIR = "public/contracts";
@@ -31,8 +32,14 @@ export class LocalStorageProvider implements StorageProvider {
   async save(key: string, buffer: Buffer): Promise<string> {
     ensureDir(this.baseDir);
     const safeKey = path.basename(key).replace(/[^a-zA-Z0-9._-]/g, "_");
-    const filePath = path.join(this.baseDir, `${safeKey}.pdf`);
+    const filePath = path.join(this.baseDir, safeKey);
     fs.writeFileSync(filePath, buffer);
-    return `/contracts/${safeKey}.pdf`;
+    return `/contracts/${safeKey}`;
+  }
+
+  async read(urlOrKey: string): Promise<Buffer> {
+    const name = path.basename(urlOrKey).replace(/[^a-zA-Z0-9._-]/g, "_");
+    const filePath = path.join(this.baseDir, name);
+    return fs.promises.readFile(filePath);
   }
 }

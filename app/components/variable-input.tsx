@@ -16,6 +16,9 @@ const inputClass =
   "w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 text-sm";
 const labelClass = "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1";
 
+const errorInputClass =
+  "w-full rounded-lg border-2 border-red-500 dark:border-red-500 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-400 dark:focus:ring-red-500 text-sm";
+
 export type VariableInputProps = {
   name: string;
   type: "text" | "number" | "date" | "month" | "cui" | "signature";
@@ -27,6 +30,7 @@ export type VariableInputProps = {
   anafError?: string | null;
   onAnafLookup?: () => void;
   disabled?: boolean;
+  error?: string | null;
 };
 
 function isValidCuiInput(cui: string): boolean {
@@ -78,6 +82,7 @@ function SignaturePadInput({
   }, []);
 
   const handleResign = () => {
+    padRef.current?.clear();
     onChange("");
     setIsDrawing(false);
   };
@@ -121,6 +126,7 @@ function SignaturePadInput({
             type="button"
             onClick={() => {
               padRef.current?.clear();
+              onChange("");
             }}
             className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
           >
@@ -143,9 +149,11 @@ export function VariableInput({
   anafError = null,
   onAnafLookup,
   disabled = false,
+  error = null,
 }: VariableInputProps) {
   const label = getVariableLabel(definition, name);
   const id = `var-${name}`;
+  const inputCls = error ? errorInputClass : inputClass;
 
   if (type === "number") {
     return (
@@ -158,9 +166,10 @@ export function VariableInput({
           type="number"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={inputClass}
+          className={inputCls}
           disabled={disabled}
         />
+        {error && <p className="text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>}
       </div>
     );
   }
@@ -176,9 +185,10 @@ export function VariableInput({
           type="date"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={inputClass}
+          className={inputCls}
           disabled={disabled}
         />
+        {error && <p className="text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>}
       </div>
     );
   }
@@ -193,7 +203,7 @@ export function VariableInput({
           id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={inputClass}
+          className={inputCls}
           disabled={disabled}
         >
           <option value="">Selectați luna</option>
@@ -203,6 +213,7 @@ export function VariableInput({
             </option>
           ))}
         </select>
+        {error && <p className="text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>}
       </div>
     );
   }
@@ -238,10 +249,11 @@ export function VariableInput({
               type="text"
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              className={inputClass}
+              className={inputCls}
               placeholder="ex. 12345678"
               disabled={disabled}
             />
+            {error && <p className="text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>}
           </div>
           {onAnafLookup && (
             <button
@@ -283,10 +295,11 @@ export function VariableInput({
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={inputClass}
+        className={inputCls}
         placeholder={label}
         disabled={disabled}
       />
+      {error && <p className="text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>}
     </div>
   );
 }

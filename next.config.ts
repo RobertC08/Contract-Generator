@@ -4,7 +4,10 @@ import path from "path";
 const projectRoot = process.cwd();
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium-min", "handlebars"],
+  serverExternalPackages: [],
+  experimental: {
+    serverActions: { bodySizeLimit: "10mb" },
+  },
   turbopack: {},
   webpack: (config) => {
     config.context = projectRoot;

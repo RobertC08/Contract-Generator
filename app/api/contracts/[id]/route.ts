@@ -5,7 +5,7 @@ import { LocalStorageProvider } from "@/lib/storage/storage-provider";
 import { updateDraftContract } from "@/lib/contracts/contract-service";
 import {
   TemplateNotFoundError,
-  PdfGenerationError,
+  TemplateRenderError,
   StorageError,
   ContractSignedError,
 } from "@/lib/contracts/errors";
@@ -103,12 +103,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (e instanceof TemplateNotFoundError) {
       return NextResponse.json({ error: "Contract negăsit" }, { status: 404 });
     }
+    if (e instanceof TemplateRenderError) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
     if (e instanceof ContractSignedError) {
       return NextResponse.json({ error: e.message }, { status: 409 });
     }
-    if (e instanceof PdfGenerationError || e instanceof StorageError) {
+    if (e instanceof StorageError) {
       return NextResponse.json({ error: e.message }, { status: 500 });
     }
-    throw e;
+    const message = e instanceof Error ? e.message : "Eroare la salvare";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

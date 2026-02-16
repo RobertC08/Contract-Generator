@@ -44,7 +44,7 @@ export async function GET(
     fullName: signer.fullName,
     email: signer.email,
     contractId: signer.contract.id,
-    pdfUrl: signer.contract.pdfUrl,
+    documentUrl: signer.contract.documentUrl,
     signatureVariableName: name,
     existingSignature,
   });

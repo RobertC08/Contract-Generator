@@ -14,14 +14,6 @@ export class TemplateNotFoundError extends Error {
   }
 }
 
-export class PdfGenerationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "PdfGenerationError";
-    Object.setPrototypeOf(this, PdfGenerationError.prototype);
-  }
-}
-
 export class StorageError extends Error {
   constructor(message: string) {
     super(message);

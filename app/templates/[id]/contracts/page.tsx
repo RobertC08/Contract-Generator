@@ -7,7 +7,7 @@ import Link from "next/link";
 type ContractItem = {
   id: string;
   status: string;
-  pdfUrl: string | null;
+  documentUrl: string | null;
   createdAt: string;
   signersCount: number;
 };
@@ -128,13 +128,13 @@ export default function TemplateContractsPage() {
                       Deschide
                     </Link>
                   )}
-                  {c.pdfUrl && (
+                  {c.documentUrl && (
                     <a
-                      href={c.pdfUrl}
-                      download={`contract-${c.id}.pdf`}
+                      href={c.documentUrl}
+                      download={`contract-${c.id}.docx`}
                       className="rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     >
-                      Descarcă PDF
+                      Descarcă DOCX
                     </a>
                   )}
                   <Link

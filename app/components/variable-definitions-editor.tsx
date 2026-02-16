@@ -171,6 +171,11 @@ export function VariableDefinitionsEditor({
                 ×
               </button>
             </div>
+            {def.type === "signature" && (
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 pt-1 border-t border-zinc-200 dark:border-zinc-700">
+                În DOCX pune <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">{"%{"}{def.name}{"}"}</code> (cu % în față) ca să apară semnătura ca imagine.
+              </p>
+            )}
             {def.type === "cui" && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-zinc-200 dark:border-zinc-700">
                 <div>

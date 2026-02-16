@@ -77,6 +77,32 @@ export function formatDateToDisplay(iso: string): string {
   return `${d}.${m}.${y}`;
 }
 
+/** Parses YYYY-MM-DD or DD.MM.YYYY to ISO (YYYY-MM-DD). Returns "" if invalid. */
+export function parseDateToIso(s: string): string {
+  const t = (s ?? "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  const dmY = t.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (dmY) {
+    const [, d, m, y] = dmY;
+    const dd = d!.padStart(2, "0");
+    const mm = m!.padStart(2, "0");
+    return `${y}-${mm}-${dd}`;
+  }
+  return "";
+}
+
+/** Adds days to a date string (ISO or DD.MM.YYYY). Returns ISO (YYYY-MM-DD) or "". */
+export function addDays(dateStr: string, days: number): string {
+  const iso = parseDateToIso(dateStr);
+  if (!iso) return "";
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function monthCodeToName(code: string): string {
   const i = MONTH_CODES.indexOf(code as (typeof MONTH_CODES)[number]);
   return i >= 0 ? LUNI[i] : code;

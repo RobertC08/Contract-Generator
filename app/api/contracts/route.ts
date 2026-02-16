@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import mammoth from "mammoth";
 import { createContract, createShareableDraft } from "@/lib/contracts/contract-service";
 import { prisma } from "@/lib/db";
 import { LocalStorageProvider } from "@/lib/storage/storage-provider";
 import {
   TemplateNotFoundError,
   TemplateRenderError,
-  PdfGenerationError,
   StorageError,
   ContractSignedError,
 } from "@/lib/contracts/errors";
-import { sourceToHtml, isHtmlContent, wrapFragmentInDocument } from "@/lib/contracts/source-to-html";
 
 export const runtime = "nodejs";
 
@@ -42,9 +41,6 @@ function errorToStatusAndBody(
   if (error instanceof TemplateRenderError) {
     return { status: 400, body: { success: false, message: error.message, code: "TEMPLATE_RENDER_ERROR" } };
   }
-  if (error instanceof PdfGenerationError) {
-    return { status: 500, body: { success: false, message: error.message, code: "PDF_GENERATION_ERROR" } };
-  }
   if (error instanceof StorageError) {
     return { status: 500, body: { success: false, message: error.message, code: "STORAGE_ERROR" } };
   }
@@ -63,21 +59,25 @@ export async function GET(request: NextRequest) {
   }
   const template = await prisma.contractTemplate.findUnique({
     where: { id: templateId },
-    select: { content: true, variableDefinitions: true },
+    select: { variableDefinitions: true, fileContent: true },
   });
   if (!template) {
     return NextResponse.json({ message: "Template not found" }, { status: 404 });
   }
-  let content = isHtmlContent(template.content)
-    ? wrapFragmentInDocument(template.content)
-    : sourceToHtml(template.content);
-  const defs = template.variableDefinitions as Array<{ name: string; type?: string }> | null;
-  if (defs?.length) {
-    const regex = /<span[^>]*data-variable="(\w+)"[^>]*>[\s\S]*?<\/span>/gi;
-    content = content.replace(regex, (_, name: string) => {
-      const def = defs.find((d) => d.name === name);
-      return def?.type === "signature" ? `{{{${name}}}}` : `{{${name}}}`;
-    });
+  let content: string | undefined;
+  if (template.fileContent && template.fileContent.length > 0) {
+    try {
+      const buf = Buffer.isBuffer(template.fileContent)
+        ? template.fileContent
+        : Buffer.from(template.fileContent as ArrayLike<number>);
+      const result = await mammoth.convertToHtml({ buffer: buf });
+      content = result.value?.trim() ? result.value : undefined;
+    } catch (e) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[contracts GET] mammoth convert failed:", e);
+      }
+      content = undefined;
+    }
   }
   return NextResponse.json({
     content,
@@ -154,6 +154,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       contractId: contract.id,
+      documentUrl: contract.documentUrl ?? undefined,
       signingLinks: signersWithLinks.map((s) => ({
         signerId: s.id,
         email: s.email,

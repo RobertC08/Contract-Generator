@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSignerByToken, submitSignature } from "@/lib/contracts/sign-service";
-import { regenerateContractPdf } from "@/lib/contracts/contract-service";
+import { regenerateContractDocument } from "@/lib/contracts/contract-service";
 import { LocalStorageProvider } from "@/lib/storage/storage-provider";
 
 function computeDeviceSignature(userAgent: string | null, ip: string | null): string {
@@ -60,13 +60,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const storageProvider = new LocalStorageProvider();
-    await regenerateContractPdf({
+    await regenerateContractDocument({
       prisma,
       storageProvider,
       contractId: signer.contract.id,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Failed to regenerate PDF";
+    const message = e instanceof Error ? e.message : "Failed to regenerate document";
     return NextResponse.json({ success: false, message }, { status: 500 });
   }
 

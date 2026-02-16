@@ -3,13 +3,11 @@ import type { Contract, PrismaClient } from "@prisma/client";
 import type { StorageProvider } from "@/lib/storage/storage-provider";
 import {
   TemplateNotFoundError,
-  PdfGenerationError,
   StorageError,
   ContractSignedError,
 } from "./errors";
-import { renderTemplate } from "./template-engine";
-import { generatePdf } from "./pdf-generator";
-import { sourceToHtml, isHtmlContent, wrapFragmentInDocument } from "./source-to-html";
+import { renderDocx } from "./docx-generator";
+import type { VariableDefinitions } from "./variable-definitions";
 
 export type SignerInput = {
   fullName: string;
@@ -29,14 +27,14 @@ export type CreateContractParams = {
 
 export type CreateContractResult = {
   contract: Contract;
-  pdfBuffer: Buffer;
+  docxBuffer: Buffer;
   signers: Array<{ id: string; email: string; fullName: string; token: string; signingLink: string }>;
 };
 
 const SIGNING_TOKEN_EXPIRY_HOURS = 72;
 
-function computeDocumentHash(pdfBuffer: Buffer): string {
-  return createHash("sha256").update(pdfBuffer).digest("hex");
+function computeDocumentHash(buffer: Buffer): string {
+  return createHash("sha256").update(buffer).digest("hex");
 }
 
 function generateSigningToken(): string {
@@ -60,50 +58,35 @@ export async function createContract({
     where: { id: templateId },
   });
   if (!template) {
-    console.error("[createContract] Template not found:", templateId);
     throw new TemplateNotFoundError(templateId);
   }
 
-  const rawContent = template.content;
-  const contentForRender = isHtmlContent(rawContent)
-    ? wrapFragmentInDocument(rawContent)
-    : sourceToHtml(rawContent);
-  const variableDefinitions = (template.variableDefinitions ?? []) as Array<{ name: string; type: string }>;
-  const renderVars = { ...variables };
-  for (const def of variableDefinitions) {
-    if (def.type === "signature") {
-      const v = renderVars[def.name];
-      if (typeof v === "string" && v.length > 0 && v.startsWith("data:image")) {
-        renderVars[def.name] = `<img src="${v}" alt="Semnătură" class="signature-img" style="max-width: 200px; max-height: 100px; width: auto; height: auto;" />`;
-      }
-    }
+  const templateBuffer = Buffer.from(template.fileContent);
+  const variableDefinitions = Array.isArray(template.variableDefinitions)
+    ? (template.variableDefinitions as VariableDefinitions)
+    : undefined;
+  const data = { ...variables };
+  const signatureVarNames = (variableDefinitions ?? []).filter((d) => d.type === "signature").map((d) => d.name);
+  for (const name of signatureVarNames) {
+    delete data[name];
   }
-  let html: string;
+
+  let docxBuffer: Buffer;
   try {
-    html = renderTemplate(contentForRender, renderVars);
+    docxBuffer = renderDocx(templateBuffer, data, variableDefinitions);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    console.error("[createContract] Template render failed:", message);
+    console.error("[createContract] DOCX render failed:", message);
     throw e;
   }
 
-  let pdfBuffer: Buffer;
+  const documentHash = computeDocumentHash(docxBuffer);
+  const key = `contract-${Date.now()}-${Math.random().toString(36).slice(2, 9)}.docx`;
+  let documentUrl: string;
   try {
-    pdfBuffer = await generatePdf(html);
+    documentUrl = await storageProvider.save(key, docxBuffer);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    console.error("[createContract] PDF generation failed:", message);
-    throw new PdfGenerationError(message);
-  }
-
-  const documentHash = computeDocumentHash(pdfBuffer);
-  const key = `contract-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-  let pdfUrl: string;
-  try {
-    pdfUrl = await storageProvider.save(key, pdfBuffer);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    console.error("[createContract] Storage failed:", message);
     throw new StorageError(message);
   }
 
@@ -124,7 +107,7 @@ export async function createContract({
     data: {
       templateId,
       variables: variables as object,
-      pdfUrl,
+      documentUrl,
       status: "DRAFT",
       documentHash,
       templateVersion: template.version,
@@ -143,13 +126,13 @@ export async function createContract({
     include: { signers: true },
   });
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
   const signersWithLinks = contract.signers.map((s) => ({
     ...s,
     signingLink: baseUrl ? `${baseUrl}/sign/${s.token}` : `/sign/${s.token}`,
   }));
 
-  return { contract, pdfBuffer, signers: signersWithLinks };
+  return { contract, docxBuffer, signers: signersWithLinks };
 }
 
 export type CreateShareableDraftParams = {
@@ -178,7 +161,7 @@ export async function createShareableDraft({
       templateId,
       variables: {},
       status: "DRAFT",
-      pdfUrl: null,
+      documentUrl: null,
       documentHash: null,
       templateVersion: template.version,
       draftEditToken: fillToken,
@@ -225,48 +208,32 @@ export async function updateDraftContract({
   if (contract.status !== "DRAFT") throw new ContractSignedError("Contractul este deja semnat sau trimis.");
 
   const template = contract.template;
-  const rawContent = template.content;
-  const contentForRender = isHtmlContent(rawContent)
-    ? wrapFragmentInDocument(rawContent)
-    : sourceToHtml(rawContent);
-  const variableDefinitions = (template.variableDefinitions ?? []) as Array<{ name: string; type: string }>;
-  const renderVars = { ...variables };
-  for (const def of variableDefinitions) {
-    if (def.type === "signature") {
-      const v = renderVars[def.name];
-      if (typeof v === "string" && v.length > 0 && v.startsWith("data:image")) {
-        renderVars[def.name] = `<img src="${v}" alt="Semnătură" class="signature-img" style="max-width: 200px; max-height: 100px; width: auto; height: auto;" />`;
-      }
-    }
+  const templateBuffer = Buffer.from(template.fileContent);
+  const variableDefinitions = Array.isArray(template.variableDefinitions)
+    ? (template.variableDefinitions as VariableDefinitions)
+    : undefined;
+  const data = { ...variables };
+  const signatureVarNames = (variableDefinitions ?? []).filter((d) => d.type === "signature").map((d) => d.name);
+  for (const name of signatureVarNames) {
+    delete data[name];
   }
-  let html: string;
+
+  let docxBuffer: Buffer;
   try {
-    html = renderTemplate(contentForRender, renderVars);
+    docxBuffer = renderDocx(templateBuffer, data, variableDefinitions);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    console.error("[updateDraftContract] Template render failed:", message);
+    console.error("[updateDraftContract] DOCX render failed:", message);
     throw e;
   }
-  let pdfBuffer: Buffer;
-  try {
-    pdfBuffer = await generatePdf(html);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    console.error("[updateDraftContract] PDF generation failed:", message);
-    throw new PdfGenerationError(message);
-  }
-  const documentHash = computeDocumentHash(pdfBuffer);
-  const key = `contract-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-  let pdfUrl: string;
-  try {
-    pdfUrl = await storageProvider.save(key, pdfBuffer);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    throw new StorageError(message);
-  }
+
+  const documentHash = computeDocumentHash(docxBuffer);
+  const key = `contract-${Date.now()}-${Math.random().toString(36).slice(2, 9)}.docx`;
+  const documentUrl = await storageProvider.save(key, docxBuffer);
+
   const updated = await prisma.contract.update({
     where: { id: contractId },
-    data: { variables: variables as object, pdfUrl, documentHash },
+    data: { variables: variables as object, documentUrl, documentHash },
     include: { signers: { orderBy: { signingOrder: "asc" } } },
   });
 
@@ -293,7 +260,7 @@ export async function updateDraftContract({
   });
   const signersList = refreshed?.signers ?? updated.signers;
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
   const signersWithLinks = signersList.map((s) => ({
     ...s,
     signingLink: baseUrl ? `${baseUrl}/sign/${s.token}` : `/sign/${s.token}`,
@@ -301,17 +268,17 @@ export async function updateDraftContract({
   return { contract: refreshed ?? updated, signers: signersWithLinks };
 }
 
-export type RegenerateContractPdfParams = {
+export type RegenerateContractDocumentParams = {
   prisma: PrismaClient;
   storageProvider: StorageProvider;
   contractId: string;
 };
 
-export async function regenerateContractPdf({
+export async function regenerateContractDocument({
   prisma,
   storageProvider,
   contractId,
-}: RegenerateContractPdfParams): Promise<void> {
+}: RegenerateContractDocumentParams): Promise<void> {
   const contract = await prisma.contract.findUnique({
     where: { id: contractId },
     include: { template: true },
@@ -320,27 +287,17 @@ export async function regenerateContractPdf({
 
   const variables = (contract.variables ?? {}) as Record<string, unknown>;
   const template = contract.template;
-  const rawContent = template.content;
-  const contentForRender = isHtmlContent(rawContent)
-    ? wrapFragmentInDocument(rawContent)
-    : sourceToHtml(rawContent);
-  const variableDefinitions = (template.variableDefinitions ?? []) as Array<{ name: string; type: string }>;
-  const renderVars = { ...variables };
-  for (const def of variableDefinitions) {
-    if (def.type === "signature") {
-      const v = renderVars[def.name];
-      if (typeof v === "string" && v.length > 0 && v.startsWith("data:image")) {
-        renderVars[def.name] = `<img src="${v}" alt="Semnătură" class="signature-img" style="max-width: 200px; max-height: 100px; width: auto; height: auto;" />`;
-      }
-    }
-  }
-  const html = renderTemplate(contentForRender, renderVars);
-  const pdfBuffer = await generatePdf(html);
-  const documentHash = computeDocumentHash(pdfBuffer);
-  const key = `contract-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-  const pdfUrl = await storageProvider.save(key, pdfBuffer);
+  const templateBuffer = Buffer.from(template.fileContent);
+  const variableDefinitions = Array.isArray(template.variableDefinitions)
+    ? (template.variableDefinitions as VariableDefinitions)
+    : undefined;
+
+  const docxBuffer = renderDocx(templateBuffer, variables, variableDefinitions);
+  const documentHash = computeDocumentHash(docxBuffer);
+  const key = `contract-${Date.now()}-${Math.random().toString(36).slice(2, 9)}.docx`;
+  const documentUrl = await storageProvider.save(key, docxBuffer);
   await prisma.contract.update({
     where: { id: contractId },
-    data: { pdfUrl, documentHash },
+    data: { documentUrl, documentHash },
   });
 }

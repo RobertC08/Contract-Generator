@@ -30,7 +30,7 @@ export type SignerWithContract = {
     status: string;
     documentHash: string | null;
     templateVersion: number | null;
-    pdfUrl: string | null;
+    documentUrl: string | null;
   };
 };
 
@@ -42,11 +42,27 @@ export async function getSignerByToken(
     where: { token },
     include: {
       contract: {
-        select: { id: true, templateId: true, status: true, documentHash: true, templateVersion: true, pdfUrl: true },
+        select: { id: true, templateId: true, status: true, documentHash: true, templateVersion: true, documentUrl: true },
       },
     },
   });
   if (!signer || signer.signedAt || signer.tokenExpiresAt < new Date()) return null;
+  return signer as SignerWithContract;
+}
+
+export async function getSignerByTokenForDocument(
+  prisma: PrismaClient,
+  token: string
+): Promise<SignerWithContract | null> {
+  const signer = await prisma.signer.findUnique({
+    where: { token },
+    include: {
+      contract: {
+        select: { id: true, templateId: true, status: true, documentHash: true, templateVersion: true, documentUrl: true },
+      },
+    },
+  });
+  if (!signer || signer.tokenExpiresAt < new Date()) return null;
   return signer as SignerWithContract;
 }
 

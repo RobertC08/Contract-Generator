@@ -10,7 +10,7 @@ type AuditData = {
     status: string;
     documentHash: string | null;
     templateVersion: number | null;
-    pdfUrl: string | null;
+    documentUrl: string | null;
     createdAt: string;
   };
   signers: Array<{
@@ -126,13 +126,13 @@ function AuditPageInner() {
         {data && (
           <div className="space-y-6">
             <div className="flex flex-wrap gap-2">
-              {data.contract.pdfUrl && (
+              {data.contract.documentUrl && (
                 <a
-                  href={data.contract.pdfUrl}
-                  download={`contract-${data.contract.id}.pdf`}
+                  href={data.contract.documentUrl}
+                  download={`contract-${data.contract.id}.docx`}
                   className="inline-block rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                 >
-                  Descarcă PDF contract
+                  Descarcă DOCX contract
                 </a>
               )}
               {reportUrl && (
@@ -142,7 +142,7 @@ function AuditPageInner() {
                   rel="noopener noreferrer"
                   className="inline-block rounded bg-green-700 text-white dark:bg-green-600 px-3 py-1.5 text-sm font-medium hover:bg-green-800 dark:hover:bg-green-500"
                 >
-                  Deschide raport audit (HTML / PDF)
+                  Deschide raport audit (HTML)
                 </a>
               )}
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import type { VariableDefinitions } from "@/lib/contracts/variable-definitions";
 import {
@@ -12,42 +12,6 @@ import {
 } from "@/lib/contracts/variable-utils";
 import { VariableInput } from "@/app/components/variable-input";
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function renderPreview(templateHtml: string, variables: Record<string, string>): string {
-  let out = templateHtml;
-  for (const [key, value] of Object.entries(variables)) {
-    const replacement =
-      typeof value === "string" && value.startsWith("data:image")
-        ? `<img src="${value.replace(/"/g, "&quot;")}" alt="Semnătură" class="signature-img" style="max-width: 200px; max-height: 100px; width: auto; height: auto;" />`
-        : escapeHtml(value ?? "");
-    out = out.replace(new RegExp(`\\{\\{\\{\\s*${key}\\s*\\}\\}\\}`, "g"), replacement);
-    out = out.replace(new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g"), replacement);
-  }
-  out = out.replace(/\{\{\{[^}]+\}\}\}/g, "");
-  out = out.replace(/\{\{[^}]+\}\}/g, "");
-  out = out.replace(
-    "</head>",
-    "<style>body { padding: 15mm; }</style></head>"
-  );
-  return out;
-}
-
-function extractVariables(html: string): string[] {
-  const names = new Set<string>();
-  const re = /\{\{\{?(\w+)\}\}?\}/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html)) !== null) names.add(m[1]);
-  return Array.from(names).sort();
-}
-
 type AnafStatus = "idle" | "loading" | "error" | "success";
 
 const labelClass = "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1";
@@ -57,8 +21,8 @@ function ContractPageInner() {
   const searchParams = useSearchParams();
   const templateId = searchParams.get("templateId");
 
-  const [templateContent, setTemplateContent] = useState<string | null>(null);
   const [variableDefinitions, setVariableDefinitions] = useState<VariableDefinitions | null>(null);
+  const [templateLoaded, setTemplateLoaded] = useState(false);
   const [variables, setVariables] = useState<Record<string, string>>({});
   const [varNames, setVarNames] = useState<string[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
@@ -82,19 +46,20 @@ function ContractPageInner() {
       if (!cancelled) setLoadError(null);
     });
     fetch(`/api/contracts?templateId=${encodeURIComponent(templateId)}`)
-      .then((r) => r.json())
-      .then((data) => {
+      .then(async (res) => {
+        const data = await res.json();
         if (cancelled) return;
-        if (data.content == null) {
-          setLoadError("Template negăsit");
+        if (!res.ok) {
+          setLoadError(data.message ?? "Template negăsit");
           return;
         }
+        const defs = data.variableDefinitions ?? [];
         setLoadError(null);
-        setTemplateContent(data.content);
-        setVariableDefinitions(data.variableDefinitions ?? null);
-        const names = extractVariables(data.content);
+        setVariableDefinitions(Array.isArray(defs) ? defs : []);
+        setTemplateLoaded(true);
+        const names = Array.isArray(defs) ? defs.map((d: { name: string }) => d.name) : [];
         setVarNames(names);
-        setVariables(Object.fromEntries(names.map((n) => [n, ""])));
+        setVariables(Object.fromEntries(names.map((n: string) => [n, ""])));
       })
       .catch(() => {
         if (!cancelled) setLoadError("Eroare la încărcare");
@@ -103,26 +68,6 @@ function ContractPageInner() {
       cancelled = true;
     };
   }, [templateId]);
-
-  const previewVariables = useMemo(() => {
-    const out: Record<string, string> = { ...variables };
-    varNames.forEach((name) => {
-      const v = variables[name];
-      if (v === undefined || v === "") return;
-      const type = getVariableType(variableDefinitions, name);
-      if (type === "date") out[name] = formatDateToDisplay(v);
-      else if (type === "month") out[name] = monthCodeToName(v);
-    });
-    return out;
-  }, [variables, variableDefinitions, varNames]);
-
-  const previewHtml = useMemo(
-    () =>
-      templateContent
-        ? renderPreview(templateContent, previewVariables)
-        : null,
-    [templateContent, previewVariables]
-  );
 
   const update = useCallback((key: string, value: string) => {
     setVariables((p) => ({ ...p, [key]: value }));
@@ -209,9 +154,15 @@ function ContractPageInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ templateId, variables: payload, signers }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        error?: string;
+        success?: boolean;
+        signingLinks?: Array<{ signerId: string; email: string; signingLink: string }>;
+        contractId?: string;
+      };
       if (!res.ok) {
-        setErrorMessage(data.message ?? res.statusText ?? "Eroare la generare");
+        setErrorMessage(data.message ?? data.error ?? res.statusText ?? "Eroare la generare");
         setStatus("error");
         return;
       }
@@ -289,7 +240,7 @@ function ContractPageInner() {
     );
   }
 
-  if (!templateContent) {
+  if (!templateLoaded || !variableDefinitions) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
         <main className="w-full max-w-2xl mx-auto">
@@ -314,7 +265,7 @@ function ContractPageInner() {
           Generează contract
         </h1>
         <p className="mt-1 text-zinc-600 dark:text-zinc-400 text-sm mb-6">
-          Completați câmpurile; previzualizarea se actualizează în timp real.
+          Completați câmpurile și apăsați Generează pentru a crea documentul DOCX.
         </p>
 
         <div className="flex flex-col lg:flex-row gap-6">
@@ -400,8 +351,11 @@ function ContractPageInner() {
                 <p className="text-sm text-red-600 dark:text-red-400">{shareableError}</p>
               )}
             </div>
-            {status === "error" && (
-              <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
+            {status === "error" && errorMessage && (
+              <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/50 p-3">
+                <p className="text-sm font-medium text-red-800 dark:text-red-200 mb-1">Eroare</p>
+                <p className="text-sm text-red-700 dark:text-red-300 whitespace-pre-wrap break-words">{errorMessage}</p>
+              </div>
             )}
             {status === "success" && signingLinks && signingLinks.length > 0 && (
               <div className="rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3 space-y-2">
@@ -441,20 +395,10 @@ function ContractPageInner() {
             </button>
           </form>
 
-          <div className="flex-1 min-w-0 lg:sticky lg:top-6 lg:self-start lg:h-[calc(100vh-3rem)] lg:min-h-[calc(100vh-3rem)] rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm flex flex-col">
-            <div className="flex-shrink-0 px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-              Previzualizare
-            </div>
-            <div className="flex-1 min-h-[300px] overflow-auto">
-              {previewHtml ? (
-                <iframe
-                  title="Previzualizare"
-                  srcDoc={previewHtml}
-                  className="w-full h-full min-h-[600px] border-0 bg-white"
-                  sandbox="allow-same-origin"
-                />
-              ) : null}
-            </div>
+          <div className="flex-1 min-w-0 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              După ce completezi câmpurile și apeși „Creează contract”, se generează un document Word (.docx) pe baza template-ului. Semnatorii primesc link pentru descărcare și semnare.
+            </p>
           </div>
         </div>
       </main>

@@ -1,17 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { isHtmlContent, sourceToHtml } from "@/lib/contracts/source-to-html";
-import type { VariableDefinitions } from "@/lib/contracts/variable-definitions";
+import type { VariableDefinition, VariableDefinitions } from "@/lib/contracts/variable-definitions";
 import { validateVariableDefinitions } from "@/lib/contracts/variable-definitions";
-import { TemplateEditor } from "@/app/components/template-editor";
 import { VariableDefinitionsEditor } from "@/app/components/variable-definitions-editor";
-
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 const inputClass =
   "w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 text-sm";
@@ -23,44 +17,60 @@ export default function EditTemplatePage() {
   const id = params.id as string;
 
   const [name, setName] = useState("");
-  const [content, setContent] = useState("");
   const [variableDefinitions, setVariableDefinitions] = useState<VariableDefinitions>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [previewDocx, setPreviewDocx] = useState<File | null>(null);
+  const [clearPreviewDocx, setClearPreviewDocx] = useState(false);
+  const [hasPreviewDocx, setHasPreviewDocx] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "saving" | "done" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
-  const [showVarDropdown, setShowVarDropdown] = useState(false);
-  const [highlightVariableName, setHighlightVariableName] = useState<string | null>(null);
+  const [extractLoading, setExtractLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleVariableRename = useCallback((oldName: string, newName: string) => {
-    setContent((prev) =>
-      prev.replace(new RegExp(`\\{\\{${escapeRegExp(oldName)}\\}\\}`, "g"), `{{${newName}}}`)
-    );
-    setHighlightVariableName(newName);
-  }, []);
+  function mergeVariableNamesIntoDefs(
+    current: VariableDefinitions,
+    names: string[]
+  ): VariableDefinitions {
+    const existing = new Set(current.map((d) => d.name));
+    const toAdd: VariableDefinition[] = names
+      .filter((n) => !existing.has(n))
+      .map((name) => ({ name, type: "text" }));
+    return toAdd.length ? [...current, ...toAdd] : current;
+  }
 
-  const handleVariableFocus = useCallback((varName: string) => {
-    setHighlightVariableName(varName);
-  }, []);
+  async function handleExtractFromDocx() {
+    if (!id || extractLoading) return;
+    setExtractLoading(true);
+    setErrorMessage("");
+    try {
+      const res = await fetch(`/api/templates/${encodeURIComponent(id)}/extract-variables`);
+      const data = (await res.json()) as { variableNames?: string[]; message?: string };
+      if (!res.ok) {
+        setErrorMessage(data.message ?? "Eroare la extragere");
+        return;
+      }
+      const names = Array.isArray(data.variableNames) ? data.variableNames : [];
+      setVariableDefinitions((prev) => mergeVariableNamesIntoDefs(prev, names));
+    } catch {
+      setErrorMessage("Eroare de rețea");
+    } finally {
+      setExtractLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!id) return;
     fetch(`/api/templates/${encodeURIComponent(id)}`)
-      .then(async (r) => {
-        const data = await r.json();
-        if (!r.ok) {
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
           setStatus("error");
           setErrorMessage(data.message ?? "Template negăsit");
           return;
         }
         setName(data.name ?? "");
-        const raw = data.content ?? "";
-        const bodyInner = (html: string) =>
-          html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1]?.trim() ?? html;
-        setContent(
-          isHtmlContent(raw)
-            ? bodyInner(raw)
-            : bodyInner(sourceToHtml(raw))
-        );
         setVariableDefinitions(Array.isArray(data.variableDefinitions) ? data.variableDefinitions : []);
+        setHasPreviewDocx(Boolean(data.hasPreviewDocx));
         setStatus("idle");
       })
       .catch(() => {
@@ -79,13 +89,28 @@ export default function EditTemplatePage() {
     }
     setStatus("saving");
     setErrorMessage("");
+    const formData = new FormData();
+    formData.set("name", name.trim());
+    formData.set("variableDefinitions", JSON.stringify(variableDefinitions));
+    if (file && file.size > 0) formData.set("file", file);
+    if (clearPreviewDocx) formData.set("clearPreviewDocx", "true");
+    else if (previewDocx && previewDocx.size > 0) formData.set("previewDocx", previewDocx);
     try {
       const res = await fetch(`/api/templates/${encodeURIComponent(id)}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, content, variableDefinitions }),
+        body: formData,
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: { message?: string } = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        if (!res.ok) {
+          setErrorMessage(res.status === 500 ? "Eroare pe server. Verificați consola." : `Eroare ${res.status}`);
+          setStatus("error");
+          return;
+        }
+      }
       if (!res.ok) {
         setErrorMessage(data.message ?? "Eroare la salvare");
         setStatus("error");
@@ -93,8 +118,8 @@ export default function EditTemplatePage() {
       }
       setStatus("done");
       router.push("/templates");
-    } catch {
-      setErrorMessage("Eroare de rețea");
+    } catch (e) {
+      setErrorMessage(e instanceof Error ? e.message : "Eroare de rețea");
       setStatus("error");
     }
   }
@@ -102,17 +127,17 @@ export default function EditTemplatePage() {
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-        <main className="w-full max-w-2xl mx-auto">
+        <main className="max-w-2xl mx-auto">
           <p className="text-zinc-500 dark:text-zinc-400 text-sm">Se încarcă…</p>
         </main>
       </div>
     );
   }
 
-  if (status === "error" && !name && !content) {
+  if (status === "error" && !name && variableDefinitions.length === 0) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-        <main className="w-full max-w-2xl mx-auto">
+        <main className="max-w-2xl mx-auto">
           <p className="text-zinc-600 dark:text-zinc-400">{errorMessage}</p>
           <Link href="/templates" className="mt-4 inline-block text-sm text-zinc-900 dark:text-zinc-100 underline">
             Înapoi la template-uri
@@ -123,80 +148,125 @@ export default function EditTemplatePage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 overflow-hidden">
-      <main className="flex-1 min-h-0 flex flex-col w-full px-4 py-3">
-        <div className="flex items-center gap-4 flex-shrink-0 mb-2">
-          <Link
-            href="/templates"
-            className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-          >
-            ← Template-uri
-          </Link>
-        </div>
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight flex-shrink-0">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
+      <main className="max-w-2xl mx-auto">
+        <Link
+          href="/templates"
+          className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 mb-4 inline-block"
+        >
+          ← Template-uri
+        </Link>
+        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
           Editează template
         </h1>
-        <p className="text-zinc-600 dark:text-zinc-400 text-sm flex-shrink-0 mb-3">
-          Modifică textul și formatarea. Folosește „Inserare variabilă” pentru câmpuri dinamice.
+        <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-6">
+          Modifică numele, variabilele și opțional înlocuiește fișierele. La fel ca la creare: DOCX cu placeholdere {"{numeVariabila}"} și opțional un al doilea DOCX pentru preview la pasul 1.
         </p>
 
-        <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 lg:gap-4">
-          <aside className="lg:w-1/3 lg:max-w-md flex-shrink-0 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 flex flex-col min-h-[240px] lg:min-h-0 lg:h-full overflow-hidden">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="name" className={labelClass}>Nume template</label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputClass}
+              placeholder="ex. Contract prestări servicii"
+              required
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Fișiere încărcate în template</label>
+            <ul className="text-sm text-zinc-600 dark:text-zinc-400 space-y-1 list-disc list-inside">
+              <li><strong>{name.trim() ? `${name.trim()}.docx` : "template.docx"}</strong> – document DOCX (întotdeauna prezent)</li>
+              {hasPreviewDocx && (
+                <li><strong>contract-preview.docx</strong> – DOCX pentru pasul 1 (preview)</li>
+              )}
+            </ul>
+          </div>
+          <div>
+            <label className={labelClass}>Fișier DOCX (opțional – înlocuiește template-ul curent)</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className={inputClass}
+            />
+            {file && (
+              <p className="mt-1 text-xs text-zinc-500">{file.name} ({(file.size / 1024).toFixed(1)} KB)</p>
+            )}
+          </div>
+          <div>
+            <label className={labelClass}>DOCX pentru preview (opțional) – pentru pasul 1</label>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">DOCX-ul original (fără variabile) se afișează la „Citește contractul” cu locuri goale.</p>
+            {hasPreviewDocx && !previewDocx && (
+              <p className="text-xs text-green-600 dark:text-green-400 mb-1">Un DOCX de preview este deja încărcat.</p>
+            )}
+            <label className="inline-flex items-center gap-2 mt-1">
+              <input type="checkbox" checked={clearPreviewDocx} onChange={(e) => setClearPreviewDocx(e.target.checked)} className="rounded border-zinc-300" />
+              <span className="text-sm text-zinc-600 dark:text-zinc-400">Șterge DOCX-ul de preview</span>
+            </label>
+            <input
+              type="file"
+              accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (!f) { setPreviewDocx(null); return; }
+                const isDocx = f.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || f.name.toLowerCase().endsWith(".docx");
+                if (!isDocx) {
+                  e.target.value = "";
+                  setPreviewDocx(null);
+                  setErrorMessage("Doar fișiere DOCX sunt acceptate la preview. Alegeți un .docx.");
+                  return;
+                }
+                setErrorMessage("");
+                setPreviewDocx(f);
+                setClearPreviewDocx(false);
+              }}
+              className={inputClass + " mt-2"}
+            />
+            {previewDocx && (
+              <p className="mt-1 text-xs text-zinc-500">{previewDocx.name} ({(previewDocx.size / 1024).toFixed(1)} KB)</p>
+            )}
+          </div>
+          <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExtractFromDocx}
+                disabled={extractLoading || status === "loading"}
+                className="rounded-lg border border-zinc-300 dark:border-zinc-600 px-2 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
+              >
+                {extractLoading ? "Se extrag…" : "Extrage variabile din DOCX"}
+              </button>
+            </div>
             <VariableDefinitionsEditor
               value={variableDefinitions}
               onChange={setVariableDefinitions}
-              contentForDetect={content}
-              onVariableFocus={handleVariableFocus}
-              onVariableRename={handleVariableRename}
+              contentForDetect=""
+              onVariableFocus={() => {}}
+              onVariableRename={() => {}}
             />
-          </aside>
-          <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-3 lg:w-2/3">
-            <div className="flex-shrink-0">
-              <label htmlFor="name" className={labelClass}>
-                Nume template
-              </label>
-              <input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className={inputClass}
-                placeholder="ex. Contract de prestări servicii"
-                required
-              />
-            </div>
-            <div className="flex-1 min-h-0 flex flex-col">
-              <label className={labelClass}>
-                Conținut
-              </label>
-              <TemplateEditor
-                initialContent={content}
-                onContentChange={setContent}
-                variableDefinitions={variableDefinitions}
-                showVarDropdown={showVarDropdown}
-                onToggleVarDropdown={() => setShowVarDropdown((v) => !v)}
-                minHeight="100%"
-                highlightVariableName={highlightVariableName}
-              />
-            </div>
-            {status === "error" && (
-              <p className="text-sm text-red-600 dark:text-red-400 flex-shrink-0">{errorMessage}</p>
-            )}
-            <div className="flex gap-2 flex-shrink-0">
-              <button
-                type="submit"
-                disabled={status === "saving"}
-                className="rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2.5 text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50"
-              >
-                {status === "saving" ? "Se salvează…" : "Salvează modificările"}
-              </button>
-              <Link
-                href="/templates"
-                className="rounded-lg border border-zinc-300 dark:border-zinc-600 px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              >
-                Anulare
-              </Link>
-            </div>
+          </div>
+          {errorMessage && (
+            <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={status === "saving"}
+              className="rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2.5 text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50"
+            >
+              {status === "saving" ? "Se salvează…" : "Salvează modificările"}
+            </button>
+            <Link
+              href="/templates"
+              className="rounded-lg border border-zinc-300 dark:border-zinc-600 px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+            >
+              Anulare
+            </Link>
           </div>
         </form>
       </main>

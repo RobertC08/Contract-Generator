@@ -27,10 +27,13 @@ function renderPreview(templateHtml: string, variables: FormState): string {
   }
   out = out.replace(/\{\{\{[^}]+\}\}\}/g, "");
   out = out.replace(/\{\{[^}]+\}\}/g, "");
-  out = out.replace(
-    "</head>",
-    "<style>body { padding: 15mm; }</style></head>"
-  );
+  const previewStyles =
+    "html { box-sizing: border-box; } body, body * { box-sizing: border-box; overflow-wrap: break-word; word-break: break-word; } body { width: 100%; max-width: 210mm; padding: 15mm; } p { margin: 2mm 0; } h1 { font-size: 14pt; text-align: center; margin: 4mm 0; } h2 { font-size: 12pt; margin: 4mm 0 2mm; } .signature-img { max-width: 200px; max-height: 100px; width: auto; height: auto; display: inline-block; vertical-align: middle; }";
+  if (out.includes("</head>")) {
+    out = out.replace("</head>", `<style>${previewStyles}</style></head>`);
+  } else if (out.includes("<body")) {
+    out = out.replace("<body", `<head><meta charset="utf-8"><title>Contract</title><style>${previewStyles}</style></head><body`);
+  }
   return out;
 }
 
@@ -212,6 +215,7 @@ export function ContractForm() {
   const [anafPrestatorError, setAnafPrestatorError] = useState<string | null>(null);
   const [anafBeneficiar, setAnafBeneficiar] = useState<AnafSectionStatus>("idle");
   const [anafBeneficiarError, setAnafBeneficiarError] = useState<string | null>(null);
+  const [createdDocumentUrl, setCreatedDocumentUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/contracts?templateId=${encodeURIComponent(TEMPLATE_ID)}`)
@@ -305,6 +309,7 @@ export function ContractForm() {
     e.preventDefault();
     setStatus("loading");
     setErrorMessage(null);
+    setCreatedDocumentUrl(null);
     try {
       const res = await fetch("/api/contracts", {
         method: "POST",
@@ -320,19 +325,16 @@ export function ContractForm() {
           },
         }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setErrorMessage(data.message ?? res.statusText ?? "Failed to generate PDF");
+        const errMsg = (data as { message?: string; error?: string }).message ?? (data as { message?: string; error?: string }).error ?? res.statusText ?? "Failed to generate document";
+        setErrorMessage(errMsg);
         setStatus("error");
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "contract-prestari-servicii.pdf";
-      a.click();
-      URL.revokeObjectURL(url);
+      if (data.success && data.documentUrl) {
+        setCreatedDocumentUrl(data.documentUrl);
+      }
       setStatus("success");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Network error");
@@ -541,19 +543,25 @@ export function ContractForm() {
       </section>
 
       {status === "error" && errorMessage && (
-        <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-          {errorMessage}
-        </p>
+        <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/50 p-3" role="alert">
+          <p className="text-sm font-medium text-red-800 dark:text-red-200 mb-1">Eroare</p>
+          <p className="text-sm text-red-700 dark:text-red-300 whitespace-pre-wrap break-words">{errorMessage}</p>
+        </div>
       )}
       {status === "success" && (
-        <p className="text-sm text-green-600 dark:text-green-400">PDF descărcat.</p>
+        <p className="text-sm text-green-600 dark:text-green-400">
+          Contract creat.
+          {createdDocumentUrl && (
+            <a href={createdDocumentUrl} download="contract-prestari-servicii.docx" className="ml-1 underline">Descarcă DOCX</a>
+          )}
+        </p>
       )}
       <button
         type="submit"
         disabled={status === "loading"}
         className="w-full rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-2.5 font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
-        {status === "loading" ? "Se generează PDF…" : "Generează PDF"}
+        {status === "loading" ? "Se generează document…" : "Generează DOCX"}
       </button>
     </form>
       <div className="flex-1 min-w-0 lg:sticky lg:top-6 lg:self-start lg:h-[calc(100vh-3rem)] lg:min-h-[calc(100vh-3rem)] rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm flex flex-col">

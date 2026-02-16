@@ -26,7 +26,8 @@ enum AuthMethod {
 model ContractTemplate {
   id                   String   @id @default(cuid())
   name                 String
-  content              String
+  fileContent          Bytes
+  previewPdfContent    Bytes?
   version              Int
   variableDefinitions  Json?
   createdAt            DateTime @default(now())
@@ -38,7 +39,7 @@ model Contract {
   templateId       String
   template         ContractTemplate @relation(fields: [templateId], references: [id])
   variables        Json
-  pdfUrl           String?
+  documentUrl      String?
   status           ContractStatus   @default(DRAFT)
   documentHash     String?
   templateVersion  Int?

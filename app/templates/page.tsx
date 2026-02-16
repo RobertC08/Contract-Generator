@@ -9,6 +9,8 @@ export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
 
   function loadTemplates() {
     fetch("/api/templates")
@@ -33,6 +35,30 @@ export default function TemplatesPage() {
       }
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function handleGenerateContract(t: Template) {
+    setGeneratingId(t.id);
+    setGeneratedLink(null);
+    try {
+      const res = await fetch("/api/contracts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId: t.id, shareableLink: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.fillLink) {
+        const full = data.fillLink.startsWith("http") ? data.fillLink : `${typeof window !== "undefined" ? window.location.origin : ""}${data.fillLink}`;
+        setGeneratedLink(full);
+        try {
+          await navigator.clipboard.writeText(full);
+        } catch {
+          // ignore
+        }
+      }
+    } finally {
+      setGeneratingId(null);
     }
   }
 
@@ -94,12 +120,14 @@ export default function TemplatesPage() {
                   >
                     Contracte
                   </Link>
-                  <Link
-                    href={`/contract?templateId=${encodeURIComponent(t.id)}`}
-                    className="rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateContract(t)}
+                    disabled={generatingId !== null}
+                    className="rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
                   >
-                    Generează contract
-                  </Link>
+                    {generatingId === t.id ? "Se creează…" : "Generează contract"}
+                  </button>
                   <Link
                     href={`/templates/${encodeURIComponent(t.id)}/edit`}
                     className="rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -118,6 +146,40 @@ export default function TemplatesPage() {
               </li>
             ))}
           </ul>
+        )}
+
+        {generatedLink && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setGeneratedLink(null)}>
+            <div className="rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Link pentru client</h2>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3">
+                Trimite acest link clientului. Va citi contractul, completa datele, apoi va semna electronic.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={generatedLink}
+                  className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(generatedLink)}
+                  className="rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 text-sm font-medium"
+                >
+                  Copiază
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Linkul a fost copiat în clipboard.</p>
+              <button
+                type="button"
+                onClick={() => setGeneratedLink(null)}
+                className="mt-4 w-full rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300"
+              >
+                Închide
+              </button>
+            </div>
+          </div>
         )}
       </main>
     </div>

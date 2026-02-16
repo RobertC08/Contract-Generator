@@ -1,7 +1,7 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { VariableInput } from "@/app/components/variable-input";
 
@@ -10,14 +10,16 @@ type SignSession = {
   fullName: string;
   email: string;
   contractId: string;
-  pdfUrl: string | null;
+  documentUrl: string | null;
   signatureVariableName: string;
   existingSignature: string | null;
 };
 
 export default function SignPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const token = typeof params.token === "string" ? params.token : "";
+  const backUrl = searchParams.get("back") ? decodeURIComponent(searchParams.get("back")!) : null;
   const [session, setSession] = useState<SignSession | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState(false);
@@ -29,6 +31,9 @@ export default function SignPage() {
   const [signatureDataUrl, setSignatureDataUrl] = useState("");
   const [submitStatus, setSubmitStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [previewStatus, setPreviewStatus] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+  const previewRef = useRef<HTMLDivElement>(null);
+  const [finalPreviewReady, setFinalPreviewReady] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -40,6 +45,37 @@ export default function SignPage() {
       .then(setSession)
       .catch(() => setLoadError("Link invalid sau expirat"));
   }, [token]);
+
+  useEffect(() => {
+    if (submitStatus !== "success" || !token || !previewRef.current || !finalPreviewReady) return;
+    let cancelled = false;
+    setPreviewStatus("loading");
+    fetch(`/api/sign/${encodeURIComponent(token)}/document`)
+      .then((r) => {
+        if (!r.ok) throw new Error("Document fetch failed");
+        return r.blob();
+      })
+      .then((blob) => {
+        if (cancelled || !previewRef.current) return;
+        return import("docx-preview").then(({ renderAsync }) => {
+          if (cancelled || !previewRef.current) return;
+          previewRef.current!.innerHTML = "";
+          return renderAsync(blob, previewRef.current!, undefined, {
+            className: "docx-contract-preview",
+            inWrapper: true,
+          });
+        });
+      })
+      .then(() => {
+        if (!cancelled) setPreviewStatus("loaded");
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [submitStatus, token, finalPreviewReady]);
 
   const sendOtp = useCallback(() => {
     if (!token) return;
@@ -150,40 +186,103 @@ export default function SignPage() {
     );
   }
 
+  const steps = [
+    { id: 1, label: "Citește contractul" },
+    { id: 2, label: "Completează" },
+    { id: 3, label: "Verifică datele" },
+    { id: 4, label: "Semnează" },
+  ];
+
+  function Stepper({ allComplete = false }: { allComplete?: boolean }) {
+    return (
+      <nav className="flex items-center justify-center gap-2 sm:gap-4 mb-8" aria-label="Pași">
+        {steps.map((s, i) => (
+          <div key={s.id} className="flex items-center gap-2">
+            <div
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-medium ${
+                allComplete || i < 3
+                  ? "bg-green-600 text-white"
+                  : i === 3
+                    ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                    : "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400"
+              }`}
+            >
+              {allComplete || i < 3 ? "✓" : i + 1}
+            </div>
+            <span className={`hidden sm:inline text-sm ${i === 3 && !allComplete ? "font-medium text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400"}`}>
+              {s.label}
+            </span>
+            {i < steps.length - 1 && <span className="mx-1 text-zinc-300 dark:text-zinc-600">→</span>}
+          </div>
+        ))}
+      </nav>
+    );
+  }
+
   if (submitStatus === "success") {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6 flex flex-col items-center justify-center gap-4">
-        <p className="text-lg font-medium text-green-700 dark:text-green-400">Contract semnat cu succes.</p>
-        <Link href="/" className="text-sm text-zinc-900 dark:text-zinc-100 underline">
-          Înapoi
-        </Link>
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
+        <main className="w-full max-w-4xl mx-auto">
+          <Stepper allComplete />
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight mb-1">
+            Finalizare
+          </h1>
+          <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-6">
+            Contract semnat cu succes. Poți previzualiza și descărca documentul cu semnătura mai jos.
+          </p>
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm mb-6">
+            <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 text-sm font-medium text-zinc-600 dark:text-zinc-400 flex items-center justify-between">
+              <span>Previzualizare document</span>
+              <a
+                href={`/api/sign/${encodeURIComponent(token)}/document`}
+                download="contract.docx"
+                className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
+              >
+                Descarcă DOCX
+              </a>
+            </div>
+            <div className="p-4">
+              <div
+                ref={(el) => {
+                  (previewRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+                  setFinalPreviewReady(!!el);
+                }}
+                className="min-h-[420px] overflow-auto p-4 docx-wrapper bg-white text-zinc-900"
+                style={{ maxHeight: "70vh" }}
+              />
+              {previewStatus === "loading" && (
+                <p className="p-4 text-zinc-500 dark:text-zinc-400 text-sm">Se încarcă documentul…</p>
+              )}
+              {previewStatus === "error" && (
+                <p className="p-4 text-red-600 dark:text-red-400 text-sm">Nu s-a putut încărca previzualizarea. Poți descărca documentul mai sus.</p>
+              )}
+            </div>
+          </div>
+          <Link href="/" className="text-sm text-zinc-600 dark:text-zinc-400 hover:underline">
+            Înapoi
+          </Link>
+        </main>
       </div>
     );
   }
 
-  const pdfPreviewUrl = session.pdfUrl?.startsWith("/") ? session.pdfUrl : session.pdfUrl;
-
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
       <main className="max-w-2xl mx-auto space-y-6">
+        <Stepper />
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-          Semnare electronică
+          Pasul 4: Semnare electronică
         </h1>
         <p className="text-zinc-600 dark:text-zinc-400 text-sm">
-          Bună, {session.fullName}. Verifică documentul și completează pașii pentru semnare.
+          Bună, {session.fullName}. Completează pașii de mai jos pentru semnare (OTP și semnătură).
         </p>
-
-        {pdfPreviewUrl && (
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
-            <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-              Document
-            </div>
-            <iframe
-              title="Document"
-              src={pdfPreviewUrl}
-              className="w-full min-h-[65vh] h-[70vh] border-0"
-            />
-          </div>
+        {backUrl && (
+          <Link
+            href={backUrl}
+            className="inline-block rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            Înapoi la pasul 3
+          </Link>
         )}
 
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 space-y-4">
@@ -287,7 +386,7 @@ export default function SignPage() {
             <button
               type="button"
               onClick={submit}
-              disabled={submitStatus === "loading"}
+              disabled={submitStatus === "loading" || !signatureDataUrl.trim()}
               className="w-full rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-2.5 font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50"
             >
               {submitStatus === "loading" ? "Se trimite…" : "Semnează contractul"}

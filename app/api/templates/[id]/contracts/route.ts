@@ -26,7 +26,7 @@ export async function GET(
     select: {
       id: true,
       status: true,
-      pdfUrl: true,
+      documentUrl: true,
       createdAt: true,
       _count: { select: { signers: true } },
     },
@@ -37,7 +37,7 @@ export async function GET(
     contracts: contracts.map((c) => ({
       id: c.id,
       status: c.status,
-      pdfUrl: c.pdfUrl,
+      documentUrl: c.documentUrl,
       createdAt: c.createdAt,
       signersCount: c._count.signers,
     })),

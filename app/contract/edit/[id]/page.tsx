@@ -21,6 +21,10 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function renderPreview(templateHtml: string, variables: Record<string, string>): string {
   let out = templateHtml;
   for (const [key, value] of Object.entries(variables)) {
@@ -28,23 +32,37 @@ function renderPreview(templateHtml: string, variables: Record<string, string>):
       typeof value === "string" && value.startsWith("data:image")
         ? `<img src="${value.replace(/"/g, "&quot;")}" alt="Semnătură" class="signature-img" style="max-width: 200px; max-height: 100px; width: auto; height: auto;" />`
         : escapeHtml(value ?? "");
-    out = out.replace(new RegExp(`\\{\\{\\{\\s*${key}\\s*\\}\\}\\}`, "g"), replacement);
-    out = out.replace(new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g"), replacement);
+    const safeKey = escapeRegex(key);
+    out = out.replace(new RegExp(`\\{\\{\\{\\s*${safeKey}\\s*\\}\\}\\}`, "gi"), replacement);
+    out = out.replace(new RegExp(`\\{\\{\\s*${safeKey}\\s*\\}\\}`, "gi"), replacement);
+    out = out.replace(new RegExp(`\\{\\s*${safeKey}\\s*\\}`, "gi"), replacement);
+    out = out.replace(
+      new RegExp(`<span[^>]*data-variable="${safeKey}"[^>]*>[\\s\\S]*?<\\/span>`, "gi"),
+      replacement
+    );
   }
-  out = out.replace(/\{\{\{[^}]+\}\}\}/g, "");
-  out = out.replace(/\{\{[^}]+\}\}/g, "");
-  out = out.replace(
-    "</head>",
-    "<style>body { padding: 15mm; }</style></head>"
-  );
+  out = out.replace(/\{\{\{\s*[^}]+\s*\}\}\}/g, "");
+  out = out.replace(/\{\{\s*[^}]+\s*\}\}/g, "");
+  out = out.replace(/\{\s*[^}]+\s*\}/g, "");
+  const previewStyles =
+    "html { box-sizing: border-box; } body, body * { box-sizing: border-box; overflow-wrap: break-word; word-break: break-word; } body { width: 100%; max-width: 210mm; padding: 15mm; } p { margin: 2mm 0; } h1 { font-size: 14pt; text-align: center; margin: 4mm 0; } h2 { font-size: 12pt; margin: 4mm 0 2mm; } .signature-img { max-width: 200px; max-height: 100px; width: auto; height: auto; display: inline-block; vertical-align: middle; }";
+  if (out.includes("</head>")) {
+    out = out.replace("</head>", `<style>${previewStyles}</style></head>`);
+  } else if (out.includes("<body")) {
+    out = out.replace("<body", `<head><meta charset="utf-8"><title>Contract</title><style>${previewStyles}</style></head><body`);
+  }
   return out;
 }
 
 function extractVariables(html: string): string[] {
   const names = new Set<string>();
-  const re = /\{\{\{?(\w+)\}\}?\}/g;
+  const placeholderRe = /\{\{\{?\s*(\w+)\s*\}\}?\}/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(html)) !== null) names.add(m[1]);
+  while ((m = placeholderRe.exec(html)) !== null) names.add(m[1]);
+  const singleBraceRe = /\{\s*(\w+)\s*\}/g;
+  while ((m = singleBraceRe.exec(html)) !== null) names.add(m[1]);
+  const spanRe = /<span[^>]*data-variable="(\w+)"[^>]*>/gi;
+  while ((m = spanRe.exec(html)) !== null) names.add(m[1]);
   return Array.from(names).sort();
 }
 
@@ -95,10 +113,16 @@ export default function ContractEditPage() {
       })
       .then((templateData) => {
         if (cancelled || !templateData) return;
-        setTemplateContent(templateData.content);
+        const defs = (templateData.variableDefinitions ?? []) as Array<{ name: string }>;
+        const names = templateData.content
+          ? extractVariables(templateData.content)
+          : defs.map((d) => d.name);
         setVariableDefinitions(templateData.variableDefinitions ?? null);
-        const names = extractVariables(templateData.content);
         setVarNames(names);
+        setTemplateContent(
+          templateData.content ??
+            "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Contract</title></head><body><p class=\"text-zinc-500\">Previzualizarea documentului nu este disponibilă pentru acest template. Poți completa câmpurile și salva.</p></body></html>"
+        );
         setVariables((prev) => {
           const next = { ...Object.fromEntries(names.map((n) => [n, ""])), ...prev };
           return next;
@@ -202,9 +226,14 @@ export default function ContractEditPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ variables: payload, signers }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+        success?: boolean;
+        signingLinks?: Array<{ signerId: string; email: string; signingLink: string }>;
+      };
       if (!res.ok) {
-        setErrorMessage(data.error ?? res.statusText ?? "Eroare la salvare");
+        setErrorMessage(data.error ?? data.message ?? res.statusText ?? "Eroare la salvare");
         setStatus("error");
         return;
       }
@@ -327,7 +356,12 @@ export default function ContractEditPage() {
                 </select>
               </div>
             </div>
-            {status === "error" && <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>}
+            {status === "error" && errorMessage && (
+              <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/50 p-3">
+                <p className="text-sm font-medium text-red-800 dark:text-red-200 mb-1">Eroare</p>
+                <p className="text-sm text-red-700 dark:text-red-300 whitespace-pre-wrap break-words">{errorMessage}</p>
+              </div>
+            )}
             {status === "success" && signingLinks && signingLinks.length > 0 && (
               <div className="rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3 space-y-2">
                 <p className="text-sm font-medium text-green-800 dark:text-green-200">Contract actualizat. Linkuri de semnare:</p>

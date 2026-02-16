@@ -35,7 +35,7 @@ export async function GET(
       status: contract.status,
       documentHash: contract.documentHash,
       templateVersion: contract.templateVersion,
-      pdfUrl: contract.pdfUrl,
+      documentUrl: contract.documentUrl,
       createdAt: contract.createdAt,
     },
     signers: contract.signers.map((s) => ({
