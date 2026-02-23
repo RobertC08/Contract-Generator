@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { AdminHeader } from "@/app/components/admin-header";
 
 type AuditData = {
   contract: {
@@ -86,34 +87,30 @@ function AuditPageInner() {
     : null;
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-      <main className="max-w-3xl mx-auto">
-        <div className="mb-6">
-          <Link href="/" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-            ← Înapoi
-          </Link>
-        </div>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <AdminHeader />
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+        <h1 className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
           Verificare log-uri de audit
         </h1>
         <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-6">
           Introdu ID-ul contractului pentru a vedea jurnalul de semnare (semnatari, IP, dispozitiv, autentificare). Poți descărca un raport tipăribil ca probă.
         </p>
 
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-col sm:flex-row gap-2 mb-6">
           <input
             type="text"
             value={contractId}
             onChange={(e) => setContractId(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && fetchAudit()}
             placeholder="ID contract (ex: cmlj9565k0001f4ooxumvcjf5)"
-            className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-zinc-100 text-sm"
+            className="flex-1 min-w-0 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-zinc-100 text-sm"
           />
           <button
             type="button"
             onClick={fetchAudit}
             disabled={loading}
-            className="rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50"
+            className="rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 shrink-0"
           >
             {loading ? "Se încarcă…" : "Verifică"}
           </button>
@@ -148,13 +145,13 @@ function AuditPageInner() {
             </div>
 
             <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
-              <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
+              <div className="px-3 sm:px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
                 <h2 className="font-medium text-zinc-900 dark:text-zinc-100">Contract</h2>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 break-words">
                   Status: {data.contract.status} · Hash: {data.contract.documentHash ?? "—"} · Creat: {formatDate(data.contract.createdAt)}
                 </p>
               </div>
-              <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
+              <div className="px-3 sm:px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
                 <h2 className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">Semnatari</h2>
                 <ul className="text-sm text-zinc-700 dark:text-zinc-300 space-y-1">
                   {data.signers.map((s, i) => (
@@ -165,7 +162,7 @@ function AuditPageInner() {
                   ))}
                 </ul>
               </div>
-              <div className="px-4 py-3">
+              <div className="px-3 sm:px-4 py-3">
                 <h2 className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">Jurnal evenimente</h2>
                 {data.auditLogs.length === 0 ? (
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">Niciun eveniment încă.</p>
@@ -190,7 +187,7 @@ function AuditPageInner() {
 
 export default function AuditPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6"><p className="text-zinc-500 text-sm">Se încarcă…</p></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-zinc-50 dark:bg-zinc-950"><AdminHeader /><main className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-6"><p className="text-zinc-500 text-sm">Se încarcă…</p></main></div>}>
       <AuditPageInner />
     </Suspense>
   );

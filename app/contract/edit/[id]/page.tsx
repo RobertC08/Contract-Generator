@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { AdminHeader } from "@/app/components/admin-header";
 import type { VariableDefinitions } from "@/lib/contracts/variable-definitions";
 import {
   getVariableDefinition,
@@ -54,16 +55,17 @@ function renderPreview(templateHtml: string, variables: Record<string, string>):
   return out;
 }
 
+const VAR_NAME_IN_BRACES = "[^{}]+";
 function extractVariables(html: string): string[] {
   const names = new Set<string>();
-  const placeholderRe = /\{\{\{?\s*(\w+)\s*\}\}?\}/g;
+  const placeholderRe = new RegExp(`\\{\\{\\{?\\s*(${VAR_NAME_IN_BRACES})\\s*\\}\\}?\\}`, "g");
   let m: RegExpExecArray | null;
-  while ((m = placeholderRe.exec(html)) !== null) names.add(m[1]);
-  const singleBraceRe = /\{\s*(\w+)\s*\}/g;
-  while ((m = singleBraceRe.exec(html)) !== null) names.add(m[1]);
-  const spanRe = /<span[^>]*data-variable="(\w+)"[^>]*>/gi;
-  while ((m = spanRe.exec(html)) !== null) names.add(m[1]);
-  return Array.from(names).sort();
+  while ((m = placeholderRe.exec(html)) !== null) names.add(m[1]!.trim());
+  const singleBraceRe = new RegExp(`\\{\\s*(${VAR_NAME_IN_BRACES})\\s*\\}`, "g");
+  while ((m = singleBraceRe.exec(html)) !== null) names.add(m[1]!.trim());
+  const spanRe = /<span[^>]*data-variable="([^"]+)"[^>]*>/gi;
+  while ((m = spanRe.exec(html)) !== null) names.add(m[1]!.trim());
+  return Array.from(names).filter(Boolean).sort();
 }
 
 const labelClass = "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1";
@@ -82,13 +84,14 @@ export default function ContractEditPage() {
   const [varNames, setVarNames] = useState<string[]>([]);
   const [signerFullName, setSignerFullName] = useState("");
   const [signerEmail, setSignerEmail] = useState("");
-  const [signerRole, setSignerRole] = useState<"student" | "teacher" | "guardian">("student");
+  const [signerRole, setSignerRole] = useState<"student" | "teacher" | "guardian" | "school_music">("student");
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [signingLinks, setSigningLinks] = useState<{ signerId: string; email: string; signingLink: string }[] | null>(null);
   const [anafStatusByVar, setAnafStatusByVar] = useState<Record<string, AnafStatus>>({});
   const [anafErrorByVar, setAnafErrorByVar] = useState<Record<string, string | null>>({});
+  const [parentContractId, setParentContractId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!contractId) return;
@@ -103,8 +106,9 @@ export default function ContractEditPage() {
         setTemplateId(data.templateId);
         setSignerFullName(data.signerFullName ?? "");
         setSignerEmail(data.signerEmail ?? "");
-        setSignerRole(data.signerRole ?? "student");
+        setSignerRole((data.signerRole ?? "student") as "student" | "teacher" | "guardian" | "school_music");
         setVariables(data.variables ?? {});
+        setParentContractId(data.parentContractId ?? null);
         return data.templateId;
       })
       .then((tid) => {
@@ -257,39 +261,52 @@ export default function ContractEditPage() {
 
   if (!contractId) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-        <p className="text-zinc-600 dark:text-zinc-400">ID contract lipsă.</p>
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <AdminHeader />
+        <main className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+          <p className="text-zinc-600 dark:text-zinc-400">ID contract lipsă.</p>
+        </main>
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-        <p className="text-zinc-600 dark:text-zinc-400">{loadError}</p>
-        <Link href="/templates" className="mt-4 inline-block text-sm underline text-zinc-900 dark:text-zinc-100">← Template-uri</Link>
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <AdminHeader />
+        <main className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+          <p className="text-zinc-600 dark:text-zinc-400">{loadError}</p>
+          <Link href="/templates" className="mt-4 inline-block text-sm underline text-zinc-900 dark:text-zinc-100">← Template-uri</Link>
+        </main>
       </div>
     );
   }
 
   if (!templateContent || !templateId) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-        <p className="text-zinc-500 dark:text-zinc-400 text-sm">Se încarcă…</p>
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <AdminHeader />
+        <main className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm">Se încarcă…</p>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-      <main className="w-full max-w-6xl mx-auto">
-        <div className="mb-6 flex items-center gap-4">
-          <Link href="/templates" className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-            ← Template-uri
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <AdminHeader />
+      <main className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+        {parentContractId && (
+          <Link
+            href={`/contract/${encodeURIComponent(parentContractId)}`}
+            className="inline-block text-sm text-zinc-600 dark:text-zinc-400 hover:underline mb-4"
+          >
+            ← Înapoi la contractul principal
           </Link>
-        </div>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-          Continuă contract (draft)
+        )}
+        <h1 className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
+          {parentContractId ? "Editează act adițional (draft)" : "Continuă contract (draft)"}
         </h1>
         <p className="mt-1 text-zinc-600 dark:text-zinc-400 text-sm mb-6">
           Modifică câmpurile și salvează. Linkurile de semnare rămân valabile.
@@ -346,13 +363,14 @@ export default function ContractEditPage() {
                 <select
                   id="signerRole"
                   value={signerRole}
-                  onChange={(e) => setSignerRole(e.target.value as "student" | "teacher" | "guardian")}
+                  onChange={(e) => setSignerRole(e.target.value as "student" | "teacher" | "guardian" | "school_music")}
                   className={inputClass}
                   disabled={status === "loading"}
                 >
                   <option value="student">Student</option>
                   <option value="guardian">Părinte / Tutore legal</option>
                   <option value="teacher">Profesor</option>
+                  <option value="school_music">Școală de muzică</option>
                 </select>
               </div>
             </div>

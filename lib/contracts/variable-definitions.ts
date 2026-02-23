@@ -19,7 +19,7 @@ const linkedVariablesSchema = z.object({
 
 export const variableDefinitionSchema = z
   .object({
-    name: z.string().min(1).regex(/^[a-zA-Z0-9_]+$/, "Doar litere, cifre și _"),
+    name: z.string().min(1).regex(/^[a-zA-Z0-9_/\s.-]+$/, "Doar litere, cifre, _, /, spațiu, . și -"),
     type: z.enum(VARIABLE_TYPES),
     label: z.string().optional(),
     linkedVariables: linkedVariablesSchema.optional(),

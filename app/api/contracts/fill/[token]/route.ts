@@ -114,7 +114,7 @@ const patchSchema = z.object({
   variables: z.record(z.string(), z.unknown()),
   signerFullName: z.string().optional(),
   signerEmail: z.string().email().optional(),
-  signerRole: z.enum(["teacher", "student", "guardian"]).optional(),
+  signerRole: z.enum(["teacher", "student", "guardian", "school_music"]).optional(),
 });
 
 export async function PATCH(
@@ -151,7 +151,7 @@ export async function PATCH(
           {
             fullName: parsed.data.signerFullName,
             email: parsed.data.signerEmail,
-            role: (parsed.data.signerRole ?? "student") as "teacher" | "student" | "guardian",
+            role: (parsed.data.signerRole ?? "student") as "teacher" | "student" | "guardian" | "school_music",
           },
         ]
       : undefined;

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AdminHeader } from "@/app/components/admin-header";
 import type { VariableDefinition, VariableDefinitions } from "@/lib/contracts/variable-definitions";
@@ -34,41 +35,46 @@ function mergeVariableNamesIntoDefs(
   return toAdd.length ? [...current, ...toAdd] : current;
 }
 
-export default function NewTemplatePage() {
+function AddendumNewPageInner() {
+  const searchParams = useSearchParams();
+  const parentContractId = searchParams.get("parentContractId");
+
   const [name, setName] = useState("");
   const [variableDefinitions, setVariableDefinitions] = useState<VariableDefinitions>([]);
   const [file, setFile] = useState<File | null>(null);
   const [previewDocx, setPreviewDocx] = useState<File | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "done" | "error">("idle");
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const [savedTemplateId, setSavedTemplateId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [extractStatus, setExtractStatus] = useState<"idle" | "loading" | "done">("idle");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const onFileChange = useCallback(
-    (selected: File | null) => {
-      setFile(selected);
-      if (!selected || selected.size === 0) {
-        setExtractStatus("idle");
-        return;
-      }
-      const isDocx =
-        selected.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-        selected.name.toLowerCase().endsWith(".docx");
-      if (!isDocx) return;
-      setExtractStatus("loading");
-      extractVariablesFromDocx(selected)
-        .then((names) => {
-          setVariableDefinitions((prev) => mergeVariableNamesIntoDefs(prev, names));
-          setExtractStatus("done");
-        })
-        .catch(() => setExtractStatus("idle"));
-    },
-    []
-  );
+  const onFileChange = useCallback((selected: File | null) => {
+    setFile(selected);
+    if (!selected || selected.size === 0) {
+      setExtractStatus("idle");
+      return;
+    }
+    const isDocx =
+      selected.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      selected.name.toLowerCase().endsWith(".docx");
+    if (!isDocx) return;
+    setExtractStatus("loading");
+    extractVariablesFromDocx(selected)
+      .then((names) => {
+        setVariableDefinitions((prev) => mergeVariableNamesIntoDefs(prev, names));
+        setExtractStatus("done");
+      })
+      .catch(() => setExtractStatus("idle"));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!parentContractId) {
+      setErrorMessage("Lipsește contractul părinte.");
+      setStatus("error");
+      return;
+    }
     const validation = validateVariableDefinitions(variableDefinitions);
     if (!validation.success) {
       setErrorMessage(validation.message);
@@ -87,6 +93,7 @@ export default function NewTemplatePage() {
     formData.set("file", file);
     if (previewDocx && previewDocx.size > 0) formData.set("previewDocx", previewDocx);
     formData.set("variableDefinitions", JSON.stringify(variableDefinitions));
+    formData.set("addendumForContractId", parentContractId);
     try {
       const res = await fetch("/api/templates", {
         method: "POST",
@@ -98,7 +105,7 @@ export default function NewTemplatePage() {
         data = text ? JSON.parse(text) : {};
       } catch {
         if (!res.ok) {
-          setErrorMessage(res.status === 413 ? "Fișierul este prea mare. Încercați un DOCX mai mic." : "Eroare la salvare.");
+          setErrorMessage(res.status === 413 ? "Fișierul este prea mare." : "Eroare la salvare.");
           setStatus("error");
           return;
         }
@@ -108,7 +115,8 @@ export default function NewTemplatePage() {
         setStatus("error");
         return;
       }
-      setSavedId(data.id ?? null);
+      const templateId = data.id ?? null;
+      setSavedTemplateId(templateId);
       setStatus("done");
     } catch (e) {
       setErrorMessage(e instanceof Error ? e.message : "Eroare de rețea");
@@ -116,21 +124,30 @@ export default function NewTemplatePage() {
     }
   }
 
-  if (status === "done" && savedId) {
+  if (!parentContractId) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <AdminHeader />
+        <main className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+          <p className="text-zinc-600 dark:text-zinc-400">Lipsește contractul părinte. Accesează pagina din lista de contracte semnate.</p>
+          <Link href="/templates" className="mt-4 inline-block text-sm text-zinc-900 dark:text-zinc-100 underline">← Template-uri</Link>
+        </main>
+      </div>
+    );
+  }
+
+  if (status === "done" && savedTemplateId) {
+    const nextUrl = `/contract?templateId=${encodeURIComponent(savedTemplateId)}&parentContractId=${encodeURIComponent(parentContractId)}`;
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
         <AdminHeader />
         <main className="max-w-xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
-          <p className="text-zinc-700 dark:text-zinc-300 mb-4">Template salvat.</p>
+          <p className="text-zinc-700 dark:text-zinc-300 mb-4">Documentul și variabilele au fost salvate. Completează valorile și semnatorii pentru actul adițional.</p>
           <Link
-            href={`/templates/${savedId}/edit`}
-            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href={nextUrl}
+            className="rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2.5 text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200"
           >
-            Editează template
-          </Link>
-          {" · "}
-          <Link href="/templates" className="text-blue-600 dark:text-blue-400 hover:underline">
-            Lista template-uri
+            Continuă la completare variabile și semnare
           </Link>
         </main>
       </div>
@@ -142,27 +159,27 @@ export default function NewTemplatePage() {
       <AdminHeader />
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
         <h1 className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
-          Template nou
+          Act adițional la contract
         </h1>
         <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-6">
-          Încarcă un fișier Word (.docx) cu placeholdere în format {"{numeVariabila}"}. Apoi definește variabilele.
+          Încarcă documentul Word (.docx) al actului adițional, DOCX pentru preview (opțional), definește variabilele și dă un nume. După salvare vei completa valorile și semnatorii.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="name" className={labelClass}>Nume template</label>
+            <label htmlFor="name" className={labelClass}>Nume act adițional</label>
             <input
               id="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className={inputClass}
-              placeholder="ex. Contract prestări servicii"
+              placeholder="ex. Act adițional nr. 1 – modificare preț"
               required
             />
           </div>
           <div>
-            <label className={labelClass}>Fișier DOCX</label>
+            <label className={labelClass}>Document DOCX</label>
             <input
               ref={fileInputRef}
               type="file"
@@ -179,7 +196,7 @@ export default function NewTemplatePage() {
             )}
           </div>
           <div>
-            <label className={labelClass}>DOCX pentru preview (opțional) – pentru pasul 1</label>
+            <label className={labelClass}>DOCX pentru preview (opțional)</label>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Încarcă un DOCX (original, fără variabile) ca să se afișeze la „Citește contractul” cu locuri goale.</p>
             <input
               type="file"
@@ -191,7 +208,7 @@ export default function NewTemplatePage() {
                 if (!isDocx) {
                   e.target.value = "";
                   setPreviewDocx(null);
-                  setErrorMessage("Doar fișiere DOCX sunt acceptate la preview. Alegeți un .docx.");
+                  setErrorMessage("Doar fișiere DOCX sunt acceptate la preview.");
                   return;
                 }
                 setErrorMessage("");
@@ -221,7 +238,7 @@ export default function NewTemplatePage() {
               disabled={status === "saving"}
               className="rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2.5 text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50"
             >
-              {status === "saving" ? "Se salvează…" : "Salvează"}
+              {status === "saving" ? "Se salvează…" : "Salvează și continuă"}
             </button>
             <Link
               href="/templates"
@@ -233,5 +250,13 @@ export default function NewTemplatePage() {
         </form>
       </main>
     </div>
+  );
+}
+
+export default function AddendumNewPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center"><p className="text-zinc-500 text-sm">Se încarcă…</p></div>}>
+      <AddendumNewPageInner />
+    </Suspense>
   );
 }

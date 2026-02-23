@@ -6,6 +6,7 @@ import { variableDefinitionsSchema } from "@/lib/contracts/variable-definitions"
 export async function GET() {
   try {
     const templates = await prisma.contractTemplate.findMany({
+      where: { addendumForContractId: null },
       orderBy: { createdAt: "desc" },
       select: { id: true, name: true, version: true, createdAt: true },
     });
@@ -29,6 +30,11 @@ export async function POST(request: NextRequest) {
   const file = formData.get("file") as File | null;
   const previewDocx = formData.get("previewDocx") as File | null;
   const variableDefinitionsRaw = formData.get("variableDefinitions");
+  const addendumForContractId = formData.get("addendumForContractId");
+  const addendumForContractIdStr =
+    addendumForContractId != null && typeof addendumForContractId === "string" && addendumForContractId.trim()
+      ? addendumForContractId.trim()
+      : null;
 
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ message: "Numele este obligatoriu" }, { status: 400 });
@@ -64,6 +70,7 @@ export async function POST(request: NextRequest) {
       fileContent: buffer,
       version: 1,
       variableDefinitions: variableDefinitions ?? undefined,
+      addendumForContractId: addendumForContractIdStr ?? undefined,
     };
     if (previewDocx && previewDocx instanceof File && previewDocx.size > 0) {
       const docxType = previewDocx.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || previewDocx.name.toLowerCase().endsWith(".docx");

@@ -25,9 +25,15 @@ describe("variableDefinitionSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects invalid name (spaces)", () => {
-    const result = variableDefinitionSchema.safeParse({ name: "client name", type: "text" });
-    expect(result.success).toBe(false);
+  it("accepts name with spaces, slash, dot, hyphen", () => {
+    expect(variableDefinitionSchema.safeParse({ name: "client name", type: "text" }).success).toBe(true);
+    expect(variableDefinitionSchema.safeParse({ name: "Cui/CNP", type: "text" }).success).toBe(true);
+    expect(variableDefinitionSchema.safeParse({ name: "Art. 1", type: "text" }).success).toBe(true);
+  });
+
+  it("rejects invalid name (disallowed characters)", () => {
+    expect(variableDefinitionSchema.safeParse({ name: "a<b", type: "text" }).success).toBe(false);
+    expect(variableDefinitionSchema.safeParse({ name: "x\"y", type: "text" }).success).toBe(false);
   });
 
   it("rejects CUI without linkedVariables", () => {

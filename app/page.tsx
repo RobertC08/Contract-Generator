@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { AdminHeader } from "@/app/components/admin-header";
 
 type Dashboard = {
   templates: Array<{
@@ -70,35 +71,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-stone-100 dark:bg-stone-950">
-      <header className="border-b border-stone-200 dark:border-stone-800 bg-white/80 dark:bg-stone-900/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <span className="text-lg font-semibold text-stone-900 dark:text-stone-100 tracking-tight">
-            Consolă admin
-          </span>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link
-              href="/contract"
-              className="text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 transition-colors"
-            >
-              Contract nou
-            </Link>
-            <Link
-              href="/templates"
-              className="text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 transition-colors"
-            >
-              Template-uri
-            </Link>
-            <Link
-              href="/audit"
-              className="text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 transition-colors"
-            >
-              Audit
-            </Link>
-          </nav>
-        </div>
-      </header>
-
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+      <AdminHeader />
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-6 sm:space-y-8">
         {error && (
           <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
         )}
@@ -125,7 +99,7 @@ export default function Home() {
             </section>
 
             <section className="rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 overflow-hidden">
-              <div className="px-4 py-3 border-b border-stone-200 dark:border-stone-800 flex items-center justify-between">
+              <div className="px-3 sm:px-4 py-3 border-b border-stone-200 dark:border-stone-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <h2 className="font-semibold text-stone-900 dark:text-stone-100">Template-uri</h2>
                 <Link href="/templates" className="text-sm text-stone-500 hover:text-stone-900 dark:hover:text-stone-100">
                   Toate →
@@ -135,22 +109,22 @@ export default function Home() {
                 {data.templates.length === 0 ? (
                   <p className="p-4 text-stone-500 dark:text-stone-400 text-sm">Niciun template.</p>
                 ) : (
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm min-w-[280px]">
                     <thead>
                       <tr className="text-left text-stone-500 dark:text-stone-400 border-b border-stone-200 dark:border-stone-800">
-                        <th className="px-4 py-2 font-medium">Nume</th>
-                        <th className="px-4 py-2 font-medium">Versiune</th>
-                        <th className="px-4 py-2 font-medium">Contracte</th>
-                        <th className="px-4 py-2 font-medium w-0" />
+                        <th className="px-3 sm:px-4 py-2 font-medium">Nume</th>
+                        <th className="px-3 sm:px-4 py-2 font-medium">Versiune</th>
+                        <th className="px-3 sm:px-4 py-2 font-medium">Contracte</th>
+                        <th className="px-3 sm:px-4 py-2 font-medium w-0" />
                       </tr>
                     </thead>
                     <tbody>
                       {data.templates.map((t) => (
                         <tr key={t.id} className="border-b border-stone-100 dark:border-stone-800/50">
-                          <td className="px-4 py-2 text-stone-900 dark:text-stone-100">{t.name}</td>
-                          <td className="px-4 py-2 text-stone-600 dark:text-stone-400">{t.version}</td>
-                          <td className="px-4 py-2 text-stone-600 dark:text-stone-400">{t.contractsCount}</td>
-                          <td className="px-4 py-2">
+                          <td className="px-3 sm:px-4 py-2 text-stone-900 dark:text-stone-100">{t.name}</td>
+                          <td className="px-3 sm:px-4 py-2 text-stone-600 dark:text-stone-400">{t.version}</td>
+                          <td className="px-3 sm:px-4 py-2 text-stone-600 dark:text-stone-400">{t.contractsCount}</td>
+                          <td className="px-3 sm:px-4 py-2 whitespace-nowrap">
                             <Link
                               href={`/templates/${t.id}/contracts`}
                               className="text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
@@ -167,28 +141,28 @@ export default function Home() {
             </section>
 
             <section className="rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 overflow-hidden">
-              <div className="px-4 py-3 border-b border-stone-200 dark:border-stone-800">
+              <div className="px-3 sm:px-4 py-3 border-b border-stone-200 dark:border-stone-800">
                 <h2 className="font-semibold text-stone-900 dark:text-stone-100">Ultimele contracte</h2>
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
                 {data.recentContracts.length === 0 ? (
                   <p className="p-4 text-stone-500 dark:text-stone-400 text-sm">Niciun contract.</p>
                 ) : (
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm min-w-[320px]">
                     <thead>
                       <tr className="text-left text-stone-500 dark:text-stone-400 border-b border-stone-200 dark:border-stone-800">
-                        <th className="px-4 py-2 font-medium">Template</th>
-                        <th className="px-4 py-2 font-medium">Status</th>
-                        <th className="px-4 py-2 font-medium">Semnatari</th>
-                        <th className="px-4 py-2 font-medium">Data</th>
-                        <th className="px-4 py-2 font-medium w-0" />
+                        <th className="px-3 sm:px-4 py-2 font-medium">Template</th>
+                        <th className="px-3 sm:px-4 py-2 font-medium">Status</th>
+                        <th className="px-3 sm:px-4 py-2 font-medium">Semnatari</th>
+                        <th className="px-3 sm:px-4 py-2 font-medium">Data</th>
+                        <th className="px-3 sm:px-4 py-2 font-medium w-0" />
                       </tr>
                     </thead>
                     <tbody>
                       {data.recentContracts.map((c) => (
                         <tr key={c.id} className="border-b border-stone-100 dark:border-stone-800/50">
-                          <td className="px-4 py-2 text-stone-900 dark:text-stone-100">{c.templateName}</td>
-                          <td className="px-4 py-2">
+                          <td className="px-3 sm:px-4 py-2 text-stone-900 dark:text-stone-100">{c.templateName}</td>
+                          <td className="px-3 sm:px-4 py-2">
                             <span
                               className={
                                 c.status === "SIGNED"
@@ -201,19 +175,19 @@ export default function Home() {
                               {statusLabel(c.status)}
                             </span>
                           </td>
-                          <td className="px-4 py-2 text-stone-600 dark:text-stone-400">{c.signersCount}</td>
-                          <td className="px-4 py-2 text-stone-600 dark:text-stone-400">{formatDate(c.createdAt)}</td>
-                          <td className="px-4 py-2">
+                          <td className="px-3 sm:px-4 py-2 text-stone-600 dark:text-stone-400">{c.signersCount}</td>
+                          <td className="px-3 sm:px-4 py-2 text-stone-600 dark:text-stone-400">{formatDate(c.createdAt)}</td>
+                          <td className="px-3 sm:px-4 py-2 whitespace-nowrap">
                             <Link
                               href={`/templates/${c.templateId}/contracts`}
                               className="text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
                             >
                               Listă
                             </Link>
-                            {" · "}
+                            <span className="hidden sm:inline"> · </span>
                             <Link
                               href={`/audit?contractId=${c.id}`}
-                              className="text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
+                              className="text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 sm:ml-0 ml-1"
                             >
                               Audit
                             </Link>
@@ -227,37 +201,37 @@ export default function Home() {
             </section>
 
             <section className="rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 overflow-hidden">
-              <div className="px-4 py-3 border-b border-stone-200 dark:border-stone-800 flex items-center justify-between">
+              <div className="px-3 sm:px-4 py-3 border-b border-stone-200 dark:border-stone-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <h2 className="font-semibold text-stone-900 dark:text-stone-100">Ultimele semnături (audit)</h2>
                 <Link href="/audit" className="text-sm text-stone-500 hover:text-stone-900 dark:hover:text-stone-100">
                   Caută contract →
                 </Link>
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
                 {data.recentAudits.length === 0 ? (
                   <p className="p-4 text-stone-500 dark:text-stone-400 text-sm">Nicio semnătură înregistrată.</p>
                 ) : (
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm min-w-[360px]">
                     <thead>
                       <tr className="text-left text-stone-500 dark:text-stone-400 border-b border-stone-200 dark:border-stone-800">
-                        <th className="px-4 py-2 font-medium">Semnatar</th>
-                        <th className="px-4 py-2 font-medium">Dispozitiv</th>
-                        <th className="px-4 py-2 font-medium">Semn. dispozitiv</th>
-                        <th className="px-4 py-2 font-medium">Data</th>
-                        <th className="px-4 py-2 font-medium w-0" />
+                        <th className="px-3 sm:px-4 py-2 font-medium">Semnatar</th>
+                        <th className="px-3 sm:px-4 py-2 font-medium">Dispozitiv</th>
+                        <th className="px-3 sm:px-4 py-2 font-medium">Semn. dispozitiv</th>
+                        <th className="px-3 sm:px-4 py-2 font-medium">Data</th>
+                        <th className="px-3 sm:px-4 py-2 font-medium w-0" />
                       </tr>
                     </thead>
                     <tbody>
                       {data.recentAudits.map((a) => (
                         <tr key={a.id} className="border-b border-stone-100 dark:border-stone-800/50">
-                          <td className="px-4 py-2 text-stone-900 dark:text-stone-100">
+                          <td className="px-3 sm:px-4 py-2 text-stone-900 dark:text-stone-100">
                             {a.signerName}
                             <span className="text-stone-500 dark:text-stone-400 font-normal"> · {a.signerEmail}</span>
                           </td>
-                          <td className="px-4 py-2 text-stone-600 dark:text-stone-400">{a.device ?? "—"}</td>
-                          <td className="px-4 py-2 text-stone-600 dark:text-stone-400 font-mono text-xs">{a.deviceSignature ?? "—"}</td>
-                          <td className="px-4 py-2 text-stone-600 dark:text-stone-400">{formatDate(a.createdAt)}</td>
-                          <td className="px-4 py-2">
+                          <td className="px-3 sm:px-4 py-2 text-stone-600 dark:text-stone-400">{a.device ?? "—"}</td>
+                          <td className="px-3 sm:px-4 py-2 text-stone-600 dark:text-stone-400 font-mono text-xs max-w-[120px] truncate" title={a.deviceSignature ?? undefined}>{a.deviceSignature ?? "—"}</td>
+                          <td className="px-3 sm:px-4 py-2 text-stone-600 dark:text-stone-400">{formatDate(a.createdAt)}</td>
+                          <td className="px-3 sm:px-4 py-2 whitespace-nowrap">
                             <Link
                               href={`/audit?contractId=${a.contractId}`}
                               className="text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"

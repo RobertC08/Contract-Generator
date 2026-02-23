@@ -16,7 +16,7 @@ const signerInputSchema = z.object({
   fullName: z.string().min(1),
   email: z.string().email(),
   phone: z.string().optional(),
-  role: z.enum(["teacher", "student", "guardian"]).optional(),
+  role: z.enum(["teacher", "student", "guardian", "school_music"]).optional(),
 });
 
 const updateDraftSchema = z.object({
@@ -63,6 +63,7 @@ export async function GET(
     signerFullName: firstSigner?.fullName ?? "",
     signerEmail: firstSigner?.email ?? "",
     signerRole: firstSigner?.role ?? "student",
+    parentContractId: contract.parentContractId ?? undefined,
   });
 }
 
@@ -115,4 +116,27 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const message = e instanceof Error ? e.message : "Eroare la salvare";
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
+
+  const contract = await prisma.contract.findUnique({
+    where: { id },
+    select: { id: true, parentContractId: true },
+  });
+  if (!contract) return NextResponse.json({ error: "Contract negăsit" }, { status: 404 });
+  if (!contract.parentContractId) {
+    return NextResponse.json(
+      { error: "Doar actele adiționale pot fi șterse de aici. Contractul principal nu poate fi șters." },
+      { status: 403 }
+    );
+  }
+
+  await prisma.contract.delete({ where: { id } });
+  return NextResponse.json({ success: true });
 }

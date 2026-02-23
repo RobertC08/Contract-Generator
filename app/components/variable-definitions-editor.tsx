@@ -136,14 +136,14 @@ export function VariableDefinitionsEditor({
                     value={def.name}
                     onFocus={() => onVariableFocus?.(def.name)}
                     onChange={(e) => {
-                      const newName = e.target.value.replace(/\s/g, "_");
+                      const newName = e.target.value;
                       if (newName !== def.name) onVariableRename?.(def.name, newName);
                       updateAt(index, { name: newName });
                     }}
                     className={inputClass}
-                    placeholder="ex. prestatorCUI"
-                    pattern="[a-zA-Z0-9_]+"
-                    title="Doar litere, cifre și _"
+                    placeholder="ex. prestatorCUI sau Cui/CNP"
+                    pattern="[a-zA-Z0-9_/\\s.-]+"
+                    title="Litere, cifre, _, /, spațiu, . și -"
                   />
                 </div>
                 <div>

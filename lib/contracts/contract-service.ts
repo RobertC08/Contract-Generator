@@ -13,7 +13,7 @@ export type SignerInput = {
   fullName: string;
   email: string;
   phone?: string;
-  role?: "teacher" | "student" | "guardian";
+  role?: "teacher" | "student" | "guardian" | "school_music";
   signingOrder?: number;
 };
 
@@ -23,6 +23,7 @@ export type CreateContractParams = {
   templateId: string;
   variables: Record<string, unknown>;
   signers: SignerInput[];
+  parentContractId?: string;
 };
 
 export type CreateContractResult = {
@@ -53,7 +54,32 @@ export async function createContract({
   templateId,
   variables,
   signers: signersInput,
+  parentContractId,
 }: CreateContractParams): Promise<CreateContractResult> {
+  if (parentContractId) {
+    const parent = await prisma.contract.findUnique({
+      where: { id: parentContractId },
+      include: { signers: true },
+    });
+    if (!parent) throw new TemplateNotFoundError(parentContractId);
+    if (parent.status !== "SIGNED") {
+      throw new ContractSignedError("Doar contractele semnate pot avea acte adiționale.");
+    }
+    const parentSigners = parent.signers;
+    const normalizedParent = new Map(
+      parentSigners.map((p) => [p.email.toLowerCase().trim(), { email: p.email, fullName: p.fullName.trim() }])
+    );
+    for (const s of signersInput) {
+      const key = s.email.toLowerCase().trim();
+      const parentSigner = normalizedParent.get(key);
+      if (!parentSigner || parentSigner.fullName !== s.fullName.trim()) {
+        throw new ContractSignedError(
+          "Semnatarul actului adițional trebuie să aibă același nume și email ca la contractul principal."
+        );
+      }
+    }
+  }
+
   const template = await prisma.contractTemplate.findUnique({
     where: { id: templateId },
   });
@@ -96,7 +122,7 @@ export async function createContract({
         fullName: s.fullName,
         email: s.email,
         phone: s.phone ?? null,
-        role: (s.role ?? "student") as "teacher" | "student" | "guardian",
+        role: (s.role ?? "student") as "teacher" | "student" | "guardian" | "school_music",
         signingOrder: s.signingOrder ?? i,
         token: generateSigningToken(),
         tokenExpiresAt,
@@ -106,6 +132,7 @@ export async function createContract({
   const contract = await prisma.contract.create({
     data: {
       templateId,
+      parentContractId: parentContractId ?? undefined,
       variables: variables as object,
       documentUrl,
       status: "DRAFT",
@@ -138,6 +165,7 @@ export async function createContract({
 export type CreateShareableDraftParams = {
   prisma: PrismaClient;
   templateId: string;
+  parentContractId?: string;
 };
 
 export type CreateShareableDraftResult = {
@@ -148,17 +176,29 @@ export type CreateShareableDraftResult = {
 export async function createShareableDraft({
   prisma,
   templateId,
+  parentContractId,
 }: CreateShareableDraftParams): Promise<CreateShareableDraftResult> {
   const template = await prisma.contractTemplate.findUnique({
     where: { id: templateId },
   });
   if (!template) throw new TemplateNotFoundError(templateId);
 
+  if (parentContractId) {
+    const parent = await prisma.contract.findUnique({
+      where: { id: parentContractId },
+    });
+    if (!parent) throw new TemplateNotFoundError(parentContractId);
+    if (parent.status !== "SIGNED") {
+      throw new ContractSignedError("Doar contractele semnate pot avea acte adiționale.");
+    }
+  }
+
   const fillToken = randomBytes(32).toString("base64url");
   const tokenExpiresAt = new Date(Date.now() + SIGNING_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
   const contract = await prisma.contract.create({
     data: {
       templateId,
+      parentContractId: parentContractId ?? undefined,
       variables: {},
       status: "DRAFT",
       documentUrl: null,
@@ -248,7 +288,7 @@ export async function updateDraftContract({
             fullName: s.fullName,
             email: s.email,
             phone: s.phone ?? null,
-            role: (s.role ?? "student") as "teacher" | "student" | "guardian",
+            role: (s.role ?? "student") as "teacher" | "student" | "guardian" | "school_music",
           },
         });
       }

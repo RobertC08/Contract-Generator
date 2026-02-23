@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { AdminHeader } from "@/app/components/admin-header";
 import { useParams, useRouter } from "next/navigation";
 import type { VariableDefinition, VariableDefinitions } from "@/lib/contracts/variable-definitions";
 import { validateVariableDefinitions } from "@/lib/contracts/variable-definitions";
@@ -126,8 +127,9 @@ export default function EditTemplatePage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-        <main className="max-w-2xl mx-auto">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <AdminHeader />
+        <main className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <p className="text-zinc-500 dark:text-zinc-400 text-sm">Se încarcă…</p>
         </main>
       </div>
@@ -136,8 +138,9 @@ export default function EditTemplatePage() {
 
   if (status === "error" && !name && variableDefinitions.length === 0) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-        <main className="max-w-2xl mx-auto">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <AdminHeader />
+        <main className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <p className="text-zinc-600 dark:text-zinc-400">{errorMessage}</p>
           <Link href="/templates" className="mt-4 inline-block text-sm text-zinc-900 dark:text-zinc-100 underline">
             Înapoi la template-uri
@@ -148,14 +151,9 @@ export default function EditTemplatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-      <main className="max-w-2xl mx-auto">
-        <Link
-          href="/templates"
-          className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 mb-4 inline-block"
-        >
-          ← Template-uri
-        </Link>
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <AdminHeader />
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
         <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
           Editează template
         </h1>

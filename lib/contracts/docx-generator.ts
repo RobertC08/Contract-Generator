@@ -153,9 +153,9 @@ function toFriendlyMessage(e: unknown): string {
 
 const WORD_XML_REGEX = /^word\/(document|header\d*|footer\d*)\.xml$/;
 
-const SIMPLE_PLACEHOLDER_REGEX = /\{(\w+)\}/g;
-const DROPDOWN_PLACEHOLDER_REGEX = /\{#(\w+)#\s*([^}]*)\}/g;
-const SIBLING_PLACEHOLDER_REGEX = /\{@(\w+)\}/g;
+const SIMPLE_PLACEHOLDER_REGEX = /\{(?!%)([^{}]+)\}/g;
+const DROPDOWN_PLACEHOLDER_REGEX = /\{#([^{}#]+)#\s*([^}]*)\}/g;
+const SIBLING_PLACEHOLDER_REGEX = /\{@([^{}]+)\}/g;
 const SIBLING_DOTS = "..........";
 
 function escapeXml(text: string): string {
@@ -184,11 +184,10 @@ export function extractVariableNamesFromDocx(templateBuffer: Buffer): string[] {
   const seen = new Set<string>();
   const order: { index: number; name: string }[] = [];
   function add(match: RegExpExecArray, nameIndex: number) {
-    const name = match[nameIndex]!;
-    if (!seen.has(name)) {
-      seen.add(name);
-      order.push({ index: match.index, name });
-    }
+    const name = (match[nameIndex] ?? "").trim();
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    order.push({ index: match.index ?? 0, name });
   }
   let m: RegExpExecArray | null;
   const simpleRe = new RegExp(SIMPLE_PLACEHOLDER_REGEX.source, "g");

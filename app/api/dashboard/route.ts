@@ -7,6 +7,7 @@ export async function GET() {
   try {
   // Sequential queries to avoid exhausting Supabase Session pool (max clients)
   const templates = await prisma.contractTemplate.findMany({
+    where: { addendumForContractId: null },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,

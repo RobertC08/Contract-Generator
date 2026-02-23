@@ -16,6 +16,7 @@ enum SignerRole {
   teacher
   student
   guardian
+  school_music
 }
 
 enum AuthMethod {
@@ -24,27 +25,31 @@ enum AuthMethod {
 }
 
 model ContractTemplate {
-  id                   String   @id @default(cuid())
-  name                 String
-  fileContent          Bytes
-  previewPdfContent    Bytes?
-  version              Int
-  variableDefinitions  Json?
-  createdAt            DateTime @default(now())
-  contracts            Contract[]
+  id                     String   @id @default(cuid())
+  name                   String
+  fileContent            Bytes
+  previewPdfContent      Bytes?
+  version                Int
+  variableDefinitions    Json?
+  addendumForContractId  String?
+  createdAt              DateTime @default(now())
+  contracts              Contract[]
 }
 
 model Contract {
-  id               String           @id @default(cuid())
-  templateId       String
-  template         ContractTemplate @relation(fields: [templateId], references: [id])
-  variables        Json
-  documentUrl      String?
-  status           ContractStatus   @default(DRAFT)
-  documentHash     String?
-  templateVersion  Int?
+  id                String           @id @default(cuid())
+  templateId        String
+  template          ContractTemplate @relation(fields: [templateId], references: [id])
+  parentContractId  String?
+  parentContract    Contract?        @relation("ContractAddenda", fields: [parentContractId], references: [id], onDelete: SetNull)
+  addenda           Contract[]       @relation("ContractAddenda")
+  variables         Json
+  documentUrl       String?
+  status            ContractStatus   @default(DRAFT)
+  documentHash      String?
+  templateVersion   Int?
   draftEditToken   String?          @unique
-  createdAt        DateTime         @default(now())
+  createdAt         DateTime         @default(now())
   signers          Signer[]
   auditLogs        SignatureAuditLog[]
 }

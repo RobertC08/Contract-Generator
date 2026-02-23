@@ -108,7 +108,7 @@ export default function ContractFillPage() {
   const [varNames, setVarNames] = useState<string[]>([]);
   const [signerFullName, setSignerFullName] = useState("");
   const [signerEmail, setSignerEmail] = useState("");
-  const [signerRole, setSignerRole] = useState<"student" | "teacher" | "guardian">("student");
+  const [signerRole, setSignerRole] = useState<"student" | "teacher" | "guardian" | "school_music">("student");
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
@@ -325,7 +325,7 @@ export default function ContractFillPage() {
       const iso = addDays((variables["Data"] ?? "").toString().trim(), 365);
       payload["Data_final_un_an"] = iso ? formatDateToDisplay(iso) : "";
     }
-    const body: { variables: Record<string, string>; signerFullName?: string; signerEmail?: string; signerRole?: "student" | "teacher" | "guardian" } = { variables: payload };
+    const body: { variables: Record<string, string>; signerFullName?: string; signerEmail?: string; signerRole?: "student" | "teacher" | "guardian" | "school_music" } = { variables: payload };
     if (signerFullName.trim() && signerEmail.trim()) {
       body.signerFullName = signerFullName.trim();
       body.signerEmail = signerEmail.trim();
@@ -587,10 +587,11 @@ export default function ContractFillPage() {
             </div>
             <div>
               <label htmlFor="signerRole" className={labelClass}>Rol semnatar</label>
-              <select id="signerRole" value={signerRole} onChange={(e) => setSignerRole(e.target.value as "student" | "teacher" | "guardian")} className={inputClass} disabled={status === "loading"}>
+              <select id="signerRole" value={signerRole} onChange={(e) => setSignerRole(e.target.value as "student" | "teacher" | "guardian" | "school_music")} className={inputClass} disabled={status === "loading"}>
                 <option value="student">Student</option>
                 <option value="guardian">Părinte / Tutore legal</option>
                 <option value="teacher">Profesor</option>
+                <option value="school_music">Școală de muzică</option>
               </select>
             </div>
           </div>

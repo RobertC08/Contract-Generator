@@ -1,8 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
+import { AdminHeader } from "@/app/components/admin-header";
 import type { VariableDefinitions } from "@/lib/contracts/variable-definitions";
 import {
   getVariableDefinition,
@@ -20,6 +21,10 @@ const inputClass = "w-full rounded-lg border border-zinc-300 dark:border-zinc-60
 function ContractPageInner() {
   const searchParams = useSearchParams();
   const templateId = searchParams.get("templateId");
+  const parentFromUrl = searchParams.get("parentContractId");
+  const parentContractIdRef = useRef<string | null>(null);
+  if (parentFromUrl) parentContractIdRef.current = parentFromUrl;
+  const parentContractId = parentFromUrl ?? parentContractIdRef.current;
 
   const [variableDefinitions, setVariableDefinitions] = useState<VariableDefinitions | null>(null);
   const [templateLoaded, setTemplateLoaded] = useState(false);
@@ -32,7 +37,7 @@ function ContractPageInner() {
   const [anafErrorByVar, setAnafErrorByVar] = useState<Record<string, string | null>>({});
   const [signerFullName, setSignerFullName] = useState("");
   const [signerEmail, setSignerEmail] = useState("");
-  const [signerRole, setSignerRole] = useState<"student" | "teacher" | "guardian">("student");
+  const [signerRole, setSignerRole] = useState<"student" | "teacher" | "guardian" | "school_music">("student");
   const [signingLinks, setSigningLinks] = useState<{ signerId: string; email: string; signingLink: string }[] | null>(null);
   const [createdContractId, setCreatedContractId] = useState<string | null>(null);
   const [fillLink, setFillLink] = useState<string | null>(null);
@@ -68,6 +73,25 @@ function ContractPageInner() {
       cancelled = true;
     };
   }, [templateId]);
+
+  useEffect(() => {
+    if (!parentContractId) return;
+    let cancelled = false;
+    fetch(`/api/contracts/${encodeURIComponent(parentContractId)}/signers`)
+      .then(async (res) => {
+        const data = await res.json();
+        if (cancelled || !res.ok) return;
+        const signers = (data as { signers?: { fullName: string; email: string; role: string }[] }).signers;
+        if (Array.isArray(signers) && signers.length > 0) {
+          const first = signers[0];
+          setSignerFullName(first.fullName ?? "");
+          setSignerEmail(first.email ?? "");
+          setSignerRole((first.role === "teacher" || first.role === "guardian" || first.role === "school_music" ? first.role : "student") as "student" | "teacher" | "guardian" | "school_music");
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [parentContractId]);
 
   const update = useCallback((key: string, value: string) => {
     setVariables((p) => ({ ...p, [key]: value }));
@@ -148,11 +172,13 @@ function ContractPageInner() {
     const signers = signerFullName.trim() && signerEmail.trim()
       ? [{ fullName: signerFullName.trim(), email: signerEmail.trim(), role: signerRole }]
       : undefined;
+    const body: Record<string, unknown> = { templateId, variables: payload, signers };
+    if (parentContractId) body.parentContractId = parentContractId;
     try {
       const res = await fetch("/api/contracts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateId, variables: payload, signers }),
+        body: JSON.stringify(body),
       });
       const data = (await res.json().catch(() => ({}))) as {
         message?: string;
@@ -190,11 +216,13 @@ function ContractPageInner() {
     setShareableStatus("loading");
     setShareableError(null);
     setFillLink(null);
+    const body: Record<string, unknown> = { templateId, shareableLink: true };
+    if (parentContractId) body.parentContractId = parentContractId;
     try {
       const res = await fetch("/api/contracts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateId, shareableLink: true }),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -209,12 +237,13 @@ function ContractPageInner() {
       setShareableError("Eroare de rețea");
       setShareableStatus("error");
     }
-  }, [templateId]);
+  }, [templateId, parentContractId]);
 
   if (!templateId) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-        <main className="w-full max-w-2xl mx-auto">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <AdminHeader />
+        <main className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <p className="text-zinc-600 dark:text-zinc-400">
             Adaugă <code className="rounded bg-zinc-200 dark:bg-zinc-700 px-1">?templateId=...</code> în URL sau alege un template din{" "}
             <Link href="/templates" className="text-zinc-900 dark:text-zinc-100 underline">
@@ -229,8 +258,9 @@ function ContractPageInner() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-        <main className="w-full max-w-2xl mx-auto">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <AdminHeader />
+        <main className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <p className="text-zinc-600 dark:text-zinc-400">{loadError}</p>
           <Link href="/templates" className="mt-4 inline-block text-sm text-zinc-900 dark:text-zinc-100 underline">
             Înapoi la template-uri
@@ -242,8 +272,9 @@ function ContractPageInner() {
 
   if (!templateLoaded || !variableDefinitions) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-        <main className="w-full max-w-2xl mx-auto">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <AdminHeader />
+        <main className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <p className="text-zinc-500 dark:text-zinc-400 text-sm">Se încarcă template-ul…</p>
         </main>
       </div>
@@ -251,21 +282,16 @@ function ContractPageInner() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-      <main className="w-full max-w-6xl mx-auto">
-        <div className="mb-6 flex items-center gap-4">
-          <Link
-            href="/templates"
-            className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-          >
-            ← Template-uri
-          </Link>
-        </div>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-          Generează contract
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <AdminHeader />
+      <main className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+        <h1 className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
+          {parentContractId ? "Act adițional la contract" : "Generează contract"}
         </h1>
         <p className="mt-1 text-zinc-600 dark:text-zinc-400 text-sm mb-6">
-          Completați câmpurile și apăsați Generează pentru a crea documentul DOCX.
+          {parentContractId
+            ? "Completați câmpurile pentru actul adițional. Procesul de semnare este același ca la contractul principal."
+            : "Completați câmpurile și apăsați Generează pentru a crea documentul DOCX."}
         </p>
 
         <div className="flex flex-col lg:flex-row gap-6">
@@ -289,7 +315,10 @@ function ContractPageInner() {
               );
             })}
             <div className="border-t border-zinc-200 dark:border-zinc-700 pt-4 mt-2 space-y-3">
-              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Date semnatar (link trimis pentru semnare)</p>
+              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                Date semnatar (link trimis pentru semnare)
+                {parentContractId && " – același ca la contractul principal"}
+              </p>
               <div>
                 <label htmlFor="signerFullName" className={labelClass}>Nume complet semnatar</label>
                 <input
@@ -300,6 +329,7 @@ function ContractPageInner() {
                   placeholder="Ex: Ion Popescu"
                   className={inputClass}
                   disabled={status === "loading"}
+                  readOnly={!!parentContractId}
                 />
               </div>
               <div>
@@ -312,6 +342,7 @@ function ContractPageInner() {
                   placeholder="semnatar@example.com"
                   className={inputClass}
                   disabled={status === "loading"}
+                  readOnly={!!parentContractId}
                 />
               </div>
               <div>
@@ -319,13 +350,14 @@ function ContractPageInner() {
                 <select
                   id="signerRole"
                   value={signerRole}
-                  onChange={(e) => setSignerRole(e.target.value as "student" | "teacher" | "guardian")}
+                  onChange={(e) => setSignerRole(e.target.value as "student" | "teacher" | "guardian" | "school_music")}
                   className={inputClass}
                   disabled={status === "loading"}
                 >
                   <option value="student">Student</option>
                   <option value="guardian">Părinte / Tutore legal</option>
                   <option value="teacher">Profesor</option>
+                  <option value="school_music">Școală de muzică</option>
                 </select>
               </div>
             </div>
@@ -336,19 +368,24 @@ function ContractPageInner() {
                 disabled={shareableStatus === "loading"}
                 className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 py-2.5 font-medium hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-50 text-sm"
               >
-                {shareableStatus === "loading" ? "Se generează…" : "Generează link partajabil"}
+                {shareableStatus === "loading" ? "Se generează…" : "Generează link (proces în pași)"}
               </button>
-              {fillLink && (
-                <div className="rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
-                  <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Link pentru completare (trimite persoanei)</p>
-                  <div className="flex gap-2">
-                    <input readOnly value={fillLink} className="flex-1 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs text-zinc-700 dark:text-zinc-300" />
-                    <button type="button" onClick={() => copySigningLink(fillLink)} className="rounded bg-zinc-200 dark:bg-zinc-600 px-2 py-1.5 text-xs font-medium">Copiază</button>
+                {fillLink && (
+                  <div className="rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
+                    <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Link pentru completare (trimite persoanei)</p>
+                    <div className="flex gap-2">
+                      <input readOnly value={fillLink} className="flex-1 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 text-xs text-zinc-700 dark:text-zinc-300" />
+                      <button type="button" onClick={() => copySigningLink(fillLink)} className="rounded bg-zinc-200 dark:bg-zinc-600 px-2 py-1.5 text-xs font-medium">Copiază</button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
               {shareableStatus === "error" && shareableError && (
                 <p className="text-sm text-red-600 dark:text-red-400">{shareableError}</p>
+              )}
+              {fillLink && (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Deschide linkul în browser pentru a completa variabilele și semnăturile în pași (ca la contractul normal).
+                </p>
               )}
             </div>
             {status === "error" && errorMessage && (
@@ -377,12 +414,22 @@ function ContractPageInner() {
                   </div>
                 ))}
                 {createdContractId && (
-                  <Link
-                    href={`/audit?contractId=${encodeURIComponent(createdContractId)}`}
-                    className="mt-2 inline-block text-sm text-green-700 dark:text-green-300 hover:underline"
-                  >
-                    Verificare log-uri audit →
-                  </Link>
+                  <div className="mt-2 flex flex-wrap gap-3">
+                    {parentContractId && (
+                      <Link
+                        href={`/contract/${encodeURIComponent(parentContractId)}`}
+                        className="text-sm font-medium text-green-700 dark:text-green-300 hover:underline"
+                      >
+                        Vezi contractul și actele adiționale →
+                      </Link>
+                    )}
+                    <Link
+                      href={`/audit?contractId=${encodeURIComponent(createdContractId)}`}
+                      className="text-sm text-green-700 dark:text-green-300 hover:underline"
+                    >
+                      Verificare log-uri audit →
+                    </Link>
+                  </div>
                 )}
               </div>
             )}
@@ -391,7 +438,11 @@ function ContractPageInner() {
               disabled={status === "loading"}
               className="w-full rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-2.5 font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50"
             >
-              {status === "loading" ? "Se creează contractul…" : "Creează contract și obține link semnare"}
+              {status === "loading"
+                ? (parentContractId ? "Se creează actul adițional…" : "Se creează contractul…")
+                : parentContractId
+                  ? "Creează act adițional și obține link semnare"
+                  : "Creează contract și obține link semnare"}
             </button>
           </form>
 
@@ -410,7 +461,7 @@ export default function ContractPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
+        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
           <p className="text-zinc-500 text-sm">Se încarcă…</p>
         </div>
       }

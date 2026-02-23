@@ -17,15 +17,16 @@ const signerInputSchema = z.object({
   fullName: z.string().min(1),
   email: z.string().email(),
   phone: z.string().optional(),
-  role: z.enum(["teacher", "student", "guardian"]).optional(),
+  role: z.enum(["teacher", "student", "guardian", "school_music"]).optional(),
   signingOrder: z.number().int().min(0).optional(),
 });
 
 const createContractSchema = z.object({
-  templateId: z.string().min(1),
+  templateId: z.string().min(1).optional(),
   variables: z.record(z.string(), z.unknown()).optional(),
   signers: z.array(signerInputSchema).min(1).optional(),
   shareableLink: z.boolean().optional(),
+  parentContractId: z.string().min(1).optional(),
 });
 
 export type CreateContractResponse =
@@ -111,11 +112,28 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { templateId, variables: vars, signers: signersInput, shareableLink } = parsed.data;
+  const { templateId, variables: vars, signers: signersInput, shareableLink, parentContractId } = parsed.data;
+
+  if (parentContractId && !templateId && !shareableLink) {
+    return NextResponse.json(
+      { success: false, message: "Act adițional: templateId obligatoriu." },
+      { status: 400 }
+    );
+  }
 
   if (shareableLink) {
+    if (!templateId) {
+      return NextResponse.json(
+        { success: false, message: "templateId required for shareable link" },
+        { status: 400 }
+      );
+    }
     try {
-      const { contract, fillToken } = await createShareableDraft({ prisma, templateId });
+      const { contract, fillToken } = await createShareableDraft({
+        prisma,
+        templateId,
+        parentContractId: parentContractId ?? undefined,
+      });
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
       const fillLink = baseUrl ? `${baseUrl}/contract/fill/${fillToken}` : `/contract/fill/${fillToken}`;
       return NextResponse.json({
@@ -129,6 +147,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorBody, { status });
     }
   }
+
+  const templateIdReq = templateId ?? (parentContractId ? null : undefined);
+  if (!templateIdReq) {
+    return NextResponse.json(
+      { success: false, message: "templateId required" },
+      { status: 400 }
+    );
+  }
+
+  const templateRow = await prisma.contractTemplate.findUnique({
+    where: { id: templateIdReq },
+    select: { addendumForContractId: true },
+  });
+  if (!templateRow) {
+    return NextResponse.json({ success: false, message: "Template negăsit" }, { status: 404 });
+  }
+  const effectiveParentId = parentContractId ?? templateRow.addendumForContractId ?? undefined;
 
   const variables = vars ?? {};
   const storageProvider = new LocalStorageProvider();
@@ -146,9 +181,10 @@ export async function POST(request: NextRequest) {
     const { contract, signers: signersWithLinks } = await createContract({
       prisma,
       storageProvider,
-      templateId,
+      templateId: templateIdReq,
       variables,
       signers,
+      parentContractId: effectiveParentId,
     });
 
     return NextResponse.json({
