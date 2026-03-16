@@ -171,6 +171,26 @@ export function VariableDefinitionsEditor({
                 ×
               </button>
             </div>
+            {def.type === "text" && (
+              <div className="pt-1 border-t border-zinc-200 dark:border-zinc-700 space-y-1">
+                <label className={labelClass}>Opțiuni dropdown (opțional, câte una per rând)</label>
+                <textarea
+                  value={(def.options ?? []).join("\n")}
+                  onFocus={() => onVariableFocus?.(def.name)}
+                  onChange={(e) => {
+                    const lines = e.target.value.split("\n");
+                    const opts = lines.filter((l) => l.trim().length > 0);
+                    updateAt(index, { options: opts.length >= 2 ? opts : undefined });
+                  }}
+                  className={inputClass}
+                  placeholder={"ex.\nexprimă acordul\nnu îşi exprimă acordul"}
+                  rows={2}
+                />
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Minim 2 opțiuni. În formular va apărea un dropdown în loc de text liber.
+                </p>
+              </div>
+            )}
             {def.type === "signature" && (
               <p className="text-xs text-zinc-500 dark:text-zinc-400 pt-1 border-t border-zinc-200 dark:border-zinc-700">
                 În DOCX pune <code className="bg-zinc-200 dark:bg-zinc-700 px-1 rounded">{"%{"}{def.name}{"}"}</code> (cu % în față) ca să apară semnătura ca imagine.

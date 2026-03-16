@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { AdminHeader } from "@/app/components/admin-header";
+import { extractVariableNamesFromText } from "@/lib/contracts/extract-variable-names";
 import type { VariableDefinitions } from "@/lib/contracts/variable-definitions";
 import {
   getVariableDefinition,
@@ -55,17 +56,17 @@ function renderPreview(templateHtml: string, variables: Record<string, string>):
   return out;
 }
 
-const VAR_NAME_IN_BRACES = "[^{}]+";
 function extractVariables(html: string): string[] {
-  const names = new Set<string>();
-  const placeholderRe = new RegExp(`\\{\\{\\{?\\s*(${VAR_NAME_IN_BRACES})\\s*\\}\\}?\\}`, "g");
-  let m: RegExpExecArray | null;
-  while ((m = placeholderRe.exec(html)) !== null) names.add(m[1]!.trim());
-  const singleBraceRe = new RegExp(`\\{\\s*(${VAR_NAME_IN_BRACES})\\s*\\}`, "g");
-  while ((m = singleBraceRe.exec(html)) !== null) names.add(m[1]!.trim());
+  const fromPlaceholders = extractVariableNamesFromText(html);
+  const fromSpans = new Set<string>();
   const spanRe = /<span[^>]*data-variable="([^"]+)"[^>]*>/gi;
-  while ((m = spanRe.exec(html)) !== null) names.add(m[1]!.trim());
-  return Array.from(names).filter(Boolean).sort();
+  let m: RegExpExecArray | null;
+  while ((m = spanRe.exec(html)) !== null) fromSpans.add(m[1]!.trim());
+  const merged = [...fromPlaceholders];
+  for (const n of fromSpans) {
+    if (n && !fromPlaceholders.includes(n)) merged.push(n);
+  }
+  return merged.filter(Boolean);
 }
 
 const labelClass = "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1";

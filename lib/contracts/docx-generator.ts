@@ -2,7 +2,10 @@ import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import ImageModule from "docxtemplater-image-module-free";
 import { TemplateRenderError } from "./errors";
+import { extractVariableNamesFromText } from "./extract-variable-names";
 import type { VariableDefinitions } from "./variable-definitions";
+
+export { extractVariableNamesFromText };
 
 const DATA_URL_REGEX = /^data:image\/(png|jpeg|jpg|gif);base64,/i;
 
@@ -181,28 +184,13 @@ export function extractVariableNamesFromDocx(templateBuffer: Buffer): string[] {
       // skip
     }
   }
-  const seen = new Set<string>();
-  const order: { index: number; name: string }[] = [];
-  function add(match: RegExpExecArray, nameIndex: number) {
-    const name = (match[nameIndex] ?? "").trim();
-    if (!name || seen.has(name)) return;
-    seen.add(name);
-    order.push({ index: match.index ?? 0, name });
-  }
-  let m: RegExpExecArray | null;
-  const simpleRe = new RegExp(SIMPLE_PLACEHOLDER_REGEX.source, "g");
-  while ((m = simpleRe.exec(fullText)) !== null) add(m, 1);
-  const dropRe = new RegExp(DROPDOWN_PLACEHOLDER_REGEX.source, "g");
-  while ((m = dropRe.exec(fullText)) !== null) add(m, 1);
-  const sibRe = new RegExp(SIBLING_PLACEHOLDER_REGEX.source, "g");
-  while ((m = sibRe.exec(fullText)) !== null) add(m, 1);
-  order.sort((a, b) => a.index - b.index);
-  return order.map((o) => o.name);
+  return extractVariableNamesFromText(fullText);
 }
 
 export type DropdownSiblingMeta = {
   dropdownOptions: Record<string, string[]>;
-  dropdownSiblings: Record<string, string>;
+  /** For each dropdown, sibling var names in document order (one per option). */
+  dropdownSiblings: Record<string, string[]>;
 };
 
 export function extractDropdownsAndSiblingsFromDocx(templateBuffer: Buffer): DropdownSiblingMeta {
@@ -219,7 +207,7 @@ export function extractDropdownsAndSiblingsFromDocx(templateBuffer: Buffer): Dro
     }
   }
   const dropdownOptions: Record<string, string[]> = {};
-  const dropdownSiblings: Record<string, string> = {};
+  const dropdownSiblings: Record<string, string[]> = {};
   let lastDropdown: string | null = null;
   let match: RegExpExecArray | null;
   const dropRegex = new RegExp(DROPDOWN_PLACEHOLDER_REGEX.source, "g");
@@ -233,7 +221,10 @@ export function extractDropdownsAndSiblingsFromDocx(templateBuffer: Buffer): Dro
   const sibRegex = new RegExp(SIBLING_PLACEHOLDER_REGEX.source, "g");
   while ((match = sibRegex.exec(fullText)) !== null) {
     const varName = match[1]!;
-    if (lastDropdown) dropdownSiblings[lastDropdown] = varName;
+    if (lastDropdown) {
+      if (!dropdownSiblings[lastDropdown]) dropdownSiblings[lastDropdown] = [];
+      dropdownSiblings[lastDropdown].push(varName);
+    }
   }
   return { dropdownOptions, dropdownSiblings };
 }
@@ -245,10 +236,11 @@ function preprocessDropdownAndSiblingInZip(
 ): void {
   const { dropdownOptions, dropdownSiblings } = meta;
   const siblingToDropdown: Record<string, string> = {};
-  for (const [dropdown, sibling] of Object.entries(dropdownSiblings)) {
-    siblingToDropdown[sibling] = dropdown;
+  for (const [dropdown, siblings] of Object.entries(dropdownSiblings)) {
+    for (const s of siblings) {
+      siblingToDropdown[s] = dropdown;
+    }
   }
-  const siblingOccurrence: Record<string, number> = {};
 
   for (const fileName of Object.keys(zip.files)) {
     if (!WORD_XML_REGEX.test(fileName)) continue;
@@ -260,16 +252,18 @@ function preprocessDropdownAndSiblingInZip(
     } catch {
       continue;
     }
+    const dropdownOccurrence: Record<string, number> = {};
     content = content.replace(DROPDOWN_PLACEHOLDER_REGEX, (_, _name: string, label: string) =>
       escapeXml(label.trim())
     );
     content = content.replace(SIBLING_PLACEHOLDER_REGEX, (_, varName: string) => {
       const dropdown = siblingToDropdown[varName];
-      const options = dropdown && dropdownOptions[dropdown] ? dropdownOptions[dropdown] : [];
+      if (!dropdown) return escapeXml(SIBLING_DOTS);
+      const occ = dropdownOccurrence[dropdown] ?? 0;
+      dropdownOccurrence[dropdown] = occ + 1;
+      const options = dropdownOptions[dropdown] ?? [];
       const selectedVal = String(variables[dropdown] ?? "").trim();
       const selectedIndex = options.indexOf(selectedVal);
-      const occ = (siblingOccurrence[varName] ?? 0);
-      siblingOccurrence[varName] = occ + 1;
       const value = occ === selectedIndex ? String(variables[varName] ?? "").trim() : SIBLING_DOTS;
       return escapeXml(value);
     });

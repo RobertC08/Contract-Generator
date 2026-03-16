@@ -152,8 +152,39 @@ export function VariableInput({
   error = null,
 }: VariableInputProps) {
   const label = getVariableLabel(definition, name);
+  const description = definition?.description?.trim();
   const id = `var-${name}`;
   const inputCls = error ? errorInputClass : inputClass;
+
+  const DescriptionBlock = description ? (
+    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 mb-1">{description}</p>
+  ) : null;
+
+  if (definition?.options && definition.options.length >= 2) {
+    return (
+      <div className="space-y-1">
+        <label htmlFor={id} className={labelClass}>
+          {label}
+        </label>
+        {DescriptionBlock}
+        <select
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputCls}
+          disabled={disabled}
+        >
+          <option value="">Alegeți...</option>
+          {definition.options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+        {error && <p className="text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>}
+      </div>
+    );
+  }
 
   if (type === "number") {
     return (

@@ -22,6 +22,8 @@ export const variableDefinitionSchema = z
     name: z.string().min(1).regex(/^[a-zA-Z0-9_/\s.-]+$/, "Doar litere, cifre, _, /, spațiu, . și -"),
     type: z.enum(VARIABLE_TYPES),
     label: z.string().optional(),
+    description: z.string().optional(),
+    options: z.array(z.string().min(1)).min(2).optional(),
     linkedVariables: linkedVariablesSchema.optional(),
   })
   .refine(

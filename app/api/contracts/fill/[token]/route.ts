@@ -66,7 +66,7 @@ export async function GET(
     const hasPreviewDocx = Boolean(template.previewPdfContent && template.previewPdfContent.length > 0);
 
     let dropdownOptions: Record<string, string[]> = {};
-    let dropdownSiblings: Record<string, string> = {};
+    let dropdownSiblings: Record<string, string[]> = {};
     let varOrder: string[] = [];
     if (template.fileContent && template.fileContent.length > 0) {
       try {

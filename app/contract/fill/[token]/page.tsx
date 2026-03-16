@@ -3,6 +3,7 @@
 import { useParams, useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
+import { extractVariableNamesFromText } from "@/lib/contracts/extract-variable-names";
 import type { VariableDefinitions } from "@/lib/contracts/variable-definitions";
 import {
   getVariableDefinition,
@@ -56,32 +57,15 @@ function renderPreview(templateHtml: string, variables: Record<string, string>):
   return out;
 }
 
-const DROPDOWN_RE = /\{#(\w+)#\s*[^}]*\}/g;
-const SIBLING_RE = /\{@(\w+)\}/g;
-
-function extractVariables(html: string): string[] {
-  const names = new Set<string>();
-  const placeholderRe = /\{\{\{?\s*(\w+)\s*\}\}?\}/g;
-  let m: RegExpExecArray | null;
-  while ((m = placeholderRe.exec(html)) !== null) names.add(m[1]);
-  const singleBraceRe = /\{\s*(\w+)\s*\}/g;
-  while ((m = singleBraceRe.exec(html)) !== null) names.add(m[1]);
-  const spanRe = /<span[^>]*data-variable="(\w+)"[^>]*>/gi;
-  while ((m = spanRe.exec(html)) !== null) names.add(m[1]);
-  while ((m = DROPDOWN_RE.exec(html)) !== null) names.add(m[1]);
-  while ((m = SIBLING_RE.exec(html)) !== null) names.add(m[1]);
-  return Array.from(names).sort();
-}
-
 type DropdownSiblingMeta = {
   dropdownOptions: Record<string, string[]>;
-  dropdownSiblings: Record<string, string>;
+  dropdownSiblings: Record<string, string[]>;
 };
 
 const DERIVED_VAR_NAMES = ["Data_final_un_an"];
 
 function getVarNamesFromContentAndDefs(content: string | null, variableDefinitions: VariableDefinitions | null): string[] {
-  const fromContent = content ? extractVariables(content) : [];
+  const fromContent = content ? extractVariableNamesFromText(content) : [];
   const fromDefs = (variableDefinitions ?? []).map((d) => d.name);
   const combined = new Set([...fromContent, ...fromDefs]);
   return Array.from(combined).sort();
@@ -126,7 +110,7 @@ export default function ContractFillPage() {
   const [readContainerReady, setReadContainerReady] = useState(false);
   const [verifyContainerReady, setVerifyContainerReady] = useState(false);
   const [dropdownOptions, setDropdownOptions] = useState<Record<string, string[]>>({});
-  const [dropdownSiblings, setDropdownSiblings] = useState<Record<string, string>>({});
+  const [dropdownSiblings, setDropdownSiblings] = useState<Record<string, string[]>>({});
   const [varOrder, setVarOrder] = useState<string[]>([]);
 
   useEffect(() => {
@@ -151,16 +135,18 @@ export default function ContractFillPage() {
         const names = getVarNamesFromContentAndDefs(hasContent ? data.content : null, defs);
         setVarNames(names);
         const initialVars = (data.variables && typeof data.variables === "object") ? data.variables : {};
+        const dropdownOpts = data.dropdownOptions && typeof data.dropdownOptions === "object" ? data.dropdownOptions : {};
         const merged: Record<string, string> = {};
         names.forEach((n) => {
           const v = initialVars[n];
           merged[n] = typeof v === "string" ? v : "";
         });
+        Object.keys(dropdownOpts).forEach((n) => {
+          if (merged[n] === undefined) merged[n] = "";
+        });
         setVariables(merged);
         setHasPreviewDocx(Boolean(data.hasPreviewDocx));
-        setDropdownOptions(
-          data.dropdownOptions && typeof data.dropdownOptions === "object" ? data.dropdownOptions : {}
-        );
+        setDropdownOptions(dropdownOpts);
         setDropdownSiblings(
           data.dropdownSiblings && typeof data.dropdownSiblings === "object" ? data.dropdownSiblings : {}
         );
@@ -269,18 +255,21 @@ export default function ContractFillPage() {
   );
 
   const formVarNames = useMemo(() => {
-    const list = varNames.filter(
+    const dropdownKeys = Object.keys(dropdownOptions);
+    const list = new Set(varNames);
+    dropdownKeys.forEach((k) => list.add(k));
+    const filtered = [...list].filter(
       (name) =>
         getVariableType(variableDefinitions, name) !== "signature" && !DERIVED_VAR_NAMES.includes(name)
     );
-    if (varOrder.length === 0) return list;
+    if (varOrder.length === 0) return filtered;
     const orderIdx = new Map(varOrder.map((n, i) => [n, i]));
-    return [...list].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       const ia = orderIdx.get(a) ?? 1e9;
       const ib = orderIdx.get(b) ?? 1e9;
       return ia - ib;
     });
-  }, [varNames, variableDefinitions, varOrder]);
+  }, [varNames, variableDefinitions, varOrder, dropdownOptions]);
 
   const signHrefWithBack = useMemo(() => {
     if (!signingLink) return "";
@@ -532,10 +521,12 @@ export default function ContractFillPage() {
           {formVarNames.map((name) => {
             const options = dropdownMeta.dropdownOptions[name];
             if (options) {
+              const def = getVariableDefinition(variableDefinitions, name);
+              const label = def?.label ?? humanizeVariableName(name);
               return (
                 <div key={name} className="space-y-1">
                   <label htmlFor={`var-${name}`} className={labelClass}>
-                    {humanizeVariableName(name)}
+                    {label}
                   </label>
                   <select
                     id={`var-${name}`}
