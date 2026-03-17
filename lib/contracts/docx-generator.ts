@@ -253,19 +253,16 @@ function preprocessDropdownAndSiblingInZip(
       continue;
     }
     const dropdownOccurrence: Record<string, number> = {};
-    content = content.replace(DROPDOWN_PLACEHOLDER_REGEX, (_, _name: string, label: string) =>
-      escapeXml(label.trim())
-    );
+    content = content.replace(DROPDOWN_PLACEHOLDER_REGEX, () => "");
     content = content.replace(SIBLING_PLACEHOLDER_REGEX, (_, varName: string) => {
       const dropdown = siblingToDropdown[varName];
-      if (!dropdown) return escapeXml(SIBLING_DOTS);
+      if (!dropdown) return "";
       const occ = dropdownOccurrence[dropdown] ?? 0;
       dropdownOccurrence[dropdown] = occ + 1;
       const options = dropdownOptions[dropdown] ?? [];
       const selectedVal = String(variables[dropdown] ?? "").trim();
       const selectedIndex = options.indexOf(selectedVal);
-      const value = occ === selectedIndex ? String(variables[varName] ?? "").trim() : SIBLING_DOTS;
-      return escapeXml(value);
+      return selectedIndex === occ ? escapeXml(varName) : "";
     });
     zip.file(fileName, content);
   }

@@ -254,13 +254,23 @@ export default function ContractFillPage() {
     [dropdownOptions, dropdownSiblings]
   );
 
+  const siblingVarNames = useMemo(() => {
+    const set = new Set<string>();
+    for (const siblings of Object.values(dropdownSiblings)) {
+      for (const s of siblings) set.add(s);
+    }
+    return set;
+  }, [dropdownSiblings]);
+
   const formVarNames = useMemo(() => {
     const dropdownKeys = Object.keys(dropdownOptions);
     const list = new Set(varNames);
     dropdownKeys.forEach((k) => list.add(k));
     const filtered = [...list].filter(
       (name) =>
-        getVariableType(variableDefinitions, name) !== "signature" && !DERIVED_VAR_NAMES.includes(name)
+        getVariableType(variableDefinitions, name) !== "signature" &&
+        !DERIVED_VAR_NAMES.includes(name) &&
+        !siblingVarNames.has(name)
     );
     if (varOrder.length === 0) return filtered;
     const orderIdx = new Map(varOrder.map((n, i) => [n, i]));
@@ -269,7 +279,7 @@ export default function ContractFillPage() {
       const ib = orderIdx.get(b) ?? 1e9;
       return ia - ib;
     });
-  }, [varNames, variableDefinitions, varOrder, dropdownOptions]);
+  }, [varNames, variableDefinitions, varOrder, dropdownOptions, siblingVarNames]);
 
   const signHrefWithBack = useMemo(() => {
     if (!signingLink) return "";

@@ -27,48 +27,60 @@ Generatorul folosește **Docxtemplater**. În corpul documentului (text, headere
 - Dacă în template ai definit variabila ca tip **signature**, poți scrie în DOCX doar `{numeVariabila}`; generatorul o transformă automat în `{%numeVariabila}` la randare.
 - Dimensiune afișată pentru semnături: 2cm × 1cm.
 
-### 1.3 Dropdown (opțiuni)
+### 1.3 Dropdown cu text condiționat
+
+Sintaxa combină **dropdown** (`{#...#}`) și **sibling** (`{@...}`):
 
 ```
-{#numeDropdown# Eticheta opțiunii 1}
-{#numeDropdown# Eticheta opțiunii 2}
-...
+{#numeDropdown# etichetă1}{@text care rămâne dacă se alege etichetă1} {#numeDropdown# etichetă2}{@text care rămâne dacă se alege etichetă2}
 ```
 
-- `numeDropdown` e același pentru toate opțiunile; eticheta (după al doilea `#`) e textul afișat pentru fiecare variantă.
-- La randare, se afișează doar eticheta opțiunii alese (valoarea variabilei `numeDropdown` trebuie să se potrivească exact cu una dintre eticheți).
+**Cum funcționează:**
 
-### 1.4 Sibling (legat de dropdown)
-
-```
-{@numeVariabila}
-```
-
-- Se folosește **imediat după** un bloc de dropdown (`{#numeDropdown# ...}`).
-- `{@numeVariabila}` afișează valoarea variabilei doar când opțiunea selectată pentru dropdown-ul anterior este cea curentă; altfel se afișează puncte (`..........`).
-- Un singur `{@...}` poate fi asociat la ultimul dropdown din document (ordinea contează).
+- `{#numeDropdown# etichetă}` — definește o opțiune din dropdown. Numele (între `{#` și `#`) e identic pentru toate opțiunile aceluiași dropdown; eticheta (după al doilea `#`) e ce vede utilizatorul în formular.
+- `{@text}` — pus imediat după `{#...#}`. Textul din interiorul `{@...}` este **literal**: el apare în contract dacă opțiunea din fața lui e selectată. Dacă opțiunea nu e selectată, `{@text}` dispare complet din document.
+- La randare, **toate** `{#...#}` dispar din document (nu se afișează); rămâne doar `{@text}` corespunzător opțiunii alese.
+- Câmpurile `{@...}` **nu apar** în formularul de completare — ele nu sunt editabile de utilizator.
 
 **Exemplu concret**
 
-În DOCX ai un dropdown „Tip serviciu” cu 3 opțiuni; fiecare opțiune are un preț/detalii diferit. Structura:
+În DOCX:
 
 ```
-Serviciul ales: {#tipServiciu# Consultanță} — Preț: {@pret}
-                {#tipServiciu# Implementare} — Preț: {@pret}
-                {#tipServiciu# Mentenanță}    — Preț: {@pret}
+Clientul îşi {#Consimțământ imagine# de acord}{@exprimă acordul} {#Consimțământ imagine# nu sunt de acord}{@nu îşi exprimă acordul} ca Prestatorul să poată utiliza imagini.
 ```
 
-Variabile trimise la generare:
-- `tipServiciu`: `"Implementare"`
-- `pret`: `"500 RON"`
+În formular apare un dropdown **Consimțământ imagine** cu opțiunile: „de acord" / „nu sunt de acord".
 
-Rezultat randat:
-- Se afișează doar eticheta aleasă: „Implementare”.
-- La prima linie `{@pret}` devine `..........` (nu e opțiunea selectată).
-- La a doua linie `{@pret}` devine `500 RON`.
-- La a treia linie `{@pret}` devine `..........`.
+Dacă utilizatorul alege **de acord**, documentul generat devine:
 
-În variableDefinitions trebuie definite: `tipServiciu` (text) și `pret` (text sau number).
+```
+Clientul îşi exprimă acordul ca Prestatorul să poată utiliza imagini.
+```
+
+Dacă alege **nu sunt de acord**:
+
+```
+Clientul nu îşi exprimă acordul ca Prestatorul să poată utiliza imagini.
+```
+
+În variableDefinitions trebuie definit doar dropdown-ul: `{ "name": "Consimțământ imagine", "type": "text" }`.
+
+### 1.4 Text cu dropdown din opțiuni predefinite (fără sibling)
+
+Alternativă mai simplă: un singur placeholder `{numeVariabila}` + opțiuni în definiție.
+
+```
+Clientul îşi {Consimțământ imagine} ca Prestatorul...
+```
+
+Definești `options` în variableDefinitions:
+
+```json
+{ "name": "Consimțământ imagine", "type": "text", "options": ["exprimă acordul", "nu îşi exprimă acordul"] }
+```
+
+În formular apare un dropdown; valoarea selectată se pune direct în document.
 
 ---
 
@@ -94,15 +106,15 @@ La upload/ediție template în aplicație se trimite un JSON **variableDefinitio
 | `label` | Nu | Etichetă afișată deasupra câmpului în formular. |
 | `description` | Nu | Text explicativ afișat sub label; explică utilizatorului ce înseamnă câmpul. |
 | `options` | Nu | Array de stringuri (minim 2). Dacă e setat, în formular apare un **dropdown** cu aceste opțiuni în loc de text liber. Valoarea selectată este cea care se pune în document. |
-| `linkedVariables` | Doar pentru `type: "cui"` | Obiect: `{ "denumire": "numeVarDenumire", "sediu": "numeVarSediu", "regCom": "numeVarRegCom" }`. |
+| `linkedVariables` | Doar pentru `type: "cui"` | Obiect: `{ "denumire": "...", "sediu": "...", "regCom": "..." }`. |
 
 ### 3.2 Tipuri
 
-- **text** – text liber.
+- **text** – text liber (sau dropdown dacă `options` e setat).
 - **number** – numeric.
 - **date** – dată.
 - **month** – lună.
-- **cui** – CUI; obligatoriu să existe variabilele legate `denumire`, `sediu`, `regCom` (numele din DOCX pentru fiecare).
+- **cui** – CUI; obligatoriu variabile legate `denumire`, `sediu`, `regCom`.
 - **signature** – semnătură (imagine); în DOCX poți folosi `{nume}` sau direct `{%nume}`.
 
 ### 3.3 Exemplu variableDefinitions
@@ -110,23 +122,20 @@ La upload/ediție template în aplicație se trimite un JSON **variableDefinitio
 ```json
 [
   { "name": "clientName", "type": "text", "label": "Nume client" },
-  { "name": "Consimțământ imagine", "type": "text", "label": "Acord imagine elev", "options": ["exprimă acordul", "nu îşi exprimă acordul"] },
+  { "name": "Consimțământ imagine", "type": "text", "label": "Acord imagine elev" },
   { "name": "Cui/CNP", "type": "cui", "label": "CUI/CNP", "linkedVariables": { "denumire": "denumireFirma", "sediu": "sediuFirma", "regCom": "regComFirma" } },
   { "name": "dataContract", "type": "date", "label": "Data contract" },
   { "name": "prestatorSignature", "type": "signature", "label": "Semnătura prestator" }
 ]
 ```
 
-Toate variabilele din DOCX (`{clientName}`, `{Cui/CNP}`, `{denumireFirma}`, etc.) trebuie să aibă o definiție cu `name` corespunzător. Numele din `variableDefinitions` trebuie să fie **unice**.
-
 ---
 
 ## 4. Rezumat: ce modifici în DOCX
 
 1. **Text dinamic** → `{numeVariabila}`.
-2. **Semnături** → `{numeSemnatura}` (și în variableDefinitions tip `signature`) sau direct `{%numeSemnatura}`.
-3. **Dropdown** → `{#numeDropdown# Eticheta1}`, `{#numeDropdown# Eticheta2}`, apoi opțional `{@numeVariabila}` pentru valoare condiționată.
-4. **Nume variabile** → doar litere, cifre, `_`, `/`, spațiu, `.`, `-`.
-5. **Definiții** → la template, completezi `variableDefinitions` cu `name`, `type` și eventual `label` / `linkedVariables` (pentru CUI), astfel încât fiecare placeholder din document să aibă o definiție validă.
-
-Dacă un placeholder din DOCX nu are definiție sau tipul nu e potrivit (ex. CUI fără `linkedVariables`), randarea poate eșua sau câmpurile nu vor apărea corect în formularul de completare.
+2. **Semnături** → `{numeSemnatura}` (cu tip `signature` în definiții) sau direct `{%numeSemnatura}`.
+3. **Dropdown cu text condiționat** → `{#numeDropdown# eticheta}{@text literal}` per opțiune. Doar textul `{@...}` al opțiunii selectate rămâne; restul dispare.
+4. **Dropdown simplu** → `{numeVariabila}` + `options` în definiție (fără sibling).
+5. **Nume variabile** → doar litere, cifre, `_`, `/`, spațiu, `.`, `-`.
+6. **Definiții** → la template, completezi `variableDefinitions` cu `name`, `type` și eventual `label`, `description`, `options`, `linkedVariables`.

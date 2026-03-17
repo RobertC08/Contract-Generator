@@ -5,8 +5,8 @@
  * Only returns names that match the variable name pattern (letters, digits, space, _, /, ., -) to avoid XML/HTML garbage.
  */
 
-const VALID_VAR_NAME = /^[a-zA-Z0-9_/\s.-]+$/;
-const VALID_VAR_NAME_CHUNK = /[a-zA-Z0-9_/\s.-]+/g;
+const VALID_VAR_NAME = /^[\p{L}\p{N}_/\s.-]+$/u;
+const VALID_VAR_NAME_CHUNK = /[\p{L}\p{N}_/\s.-]+/gu;
 
 function normalizeCapturedName(raw: string): string | null {
   const trimmed = raw.trim();

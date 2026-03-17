@@ -142,8 +142,7 @@ export function VariableDefinitionsEditor({
                     }}
                     className={inputClass}
                     placeholder="ex. prestatorCUI sau Cui/CNP"
-                    pattern="[a-zA-Z0-9_/\\s.-]+"
-                    title="Litere, cifre, _, /, spațiu, . și -"
+                    title="Litere (inclusiv diacritice), cifre, _, /, spațiu, . și -"
                   />
                 </div>
                 <div>
