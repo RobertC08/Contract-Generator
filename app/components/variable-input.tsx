@@ -21,7 +21,7 @@ const errorInputClass =
 
 export type VariableInputProps = {
   name: string;
-  type: "text" | "number" | "date" | "month" | "cui" | "signature";
+  type: "text" | "number" | "date" | "month" | "cui" | "signature" | "contractNumber";
   definition?: VariableDefinition;
   value: string;
   onChange: (value: string) => void;
@@ -261,6 +261,15 @@ export function VariableInput({
             disabled={disabled}
           />
         </div>
+      </div>
+    );
+  }
+
+  if (type === "contractNumber") {
+    return (
+      <div className="space-y-1">
+        <span className={labelClass}>{label}</span>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Assignat automat la semnare</p>
       </div>
     );
   }

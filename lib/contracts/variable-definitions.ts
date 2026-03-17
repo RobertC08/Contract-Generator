@@ -7,6 +7,7 @@ export const VARIABLE_TYPES = [
   "month",
   "cui",
   "signature",
+  "contractNumber",
 ] as const;
 
 export type VariableType = (typeof VARIABLE_TYPES)[number];

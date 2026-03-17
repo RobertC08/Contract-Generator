@@ -269,6 +269,7 @@ export default function ContractFillPage() {
     const filtered = [...list].filter(
       (name) =>
         getVariableType(variableDefinitions, name) !== "signature" &&
+        getVariableType(variableDefinitions, name) !== "contractNumber" &&
         !DERIVED_VAR_NAMES.includes(name) &&
         !siblingVarNames.has(name)
     );

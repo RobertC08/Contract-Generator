@@ -14,6 +14,7 @@ const TYPE_LABELS: Record<VariableType, string> = {
   month: "Lună",
   cui: "CUI",
   signature: "Semnătură",
+  contractNumber: "Număr contract",
 };
 
 function defaultLinkedForCui(name: string): { denumire: string; sediu: string; regCom: string } {

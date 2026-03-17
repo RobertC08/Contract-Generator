@@ -16,6 +16,7 @@ const defs: VariableDefinition[] = [
   { name: "dataIntrareVigoare", type: "date" },
   { name: "lunaInceput", type: "month", label: "Luna început" },
   { name: "prestatorSignature", type: "signature" },
+  { name: "nrContract", type: "contractNumber" },
 ];
 
 describe("humanizeVariableName", () => {
@@ -54,6 +55,7 @@ describe("getVariableType", () => {
     expect(getVariableType(defs, "dataIntrareVigoare")).toBe("date");
     expect(getVariableType(defs, "lunaInceput")).toBe("month");
     expect(getVariableType(defs, "prestatorSignature")).toBe("signature");
+    expect(getVariableType(defs, "nrContract")).toBe("contractNumber");
   });
 
   it("returns text for unknown variable", () => {

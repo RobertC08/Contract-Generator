@@ -34,6 +34,14 @@ model ContractTemplate {
   addendumForContractId  String?
   createdAt              DateTime @default(now())
   contracts              Contract[]
+  contractNumberSequence ContractNumberSequence?
+}
+
+model ContractNumberSequence {
+  id         String           @id @default(cuid())
+  templateId String           @unique
+  template   ContractTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  lastNumber Int              @default(0)
 }
 
 model Contract {

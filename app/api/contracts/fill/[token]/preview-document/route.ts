@@ -69,10 +69,9 @@ export async function GET(
     ? template.fileContent
     : Buffer.from(template.fileContent as ArrayLike<number>);
   const variableDefinitions = Array.isArray(template.variableDefinitions) ? template.variableDefinitions : undefined;
-  const allVarNames = (variableDefinitions ?? []).map((d) => d.name);
   const data: Record<string, unknown> = {};
-  for (const name of allVarNames) {
-    data[name] = "";
+  for (const d of variableDefinitions ?? []) {
+    data[d.name] = d.type === "contractNumber" ? "—" : "";
   }
   const signatureVarNames = (variableDefinitions ?? []).filter((d) => d.type === "signature").map((d) => d.name);
   for (const name of signatureVarNames) {

@@ -16,6 +16,11 @@ describe("variableDefinitionSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts contractNumber type", () => {
+    const result = variableDefinitionSchema.safeParse({ name: "nrContract", type: "contractNumber" });
+    expect(result.success).toBe(true);
+  });
+
   it("accepts valid definition with label", () => {
     const result = variableDefinitionSchema.safeParse({
       name: "data_contract",

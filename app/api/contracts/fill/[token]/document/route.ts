@@ -33,8 +33,12 @@ export async function GET(
   const variableDefinitions = Array.isArray(template.variableDefinitions) ? template.variableDefinitions : undefined;
   const existingVars = (contract.variables ?? {}) as Record<string, unknown>;
   const data: Record<string, unknown> = { ...existingVars };
+  const contractNumberVarNames = (variableDefinitions ?? []).filter((d) => d.type === "contractNumber").map((d) => d.name);
   for (const d of variableDefinitions ?? []) {
-    if (!(d.name in data)) data[d.name] = "";
+    if (!(d.name in data)) data[d.name] = d.type === "contractNumber" ? "—" : "";
+  }
+  for (const name of contractNumberVarNames) {
+    if (!existingVars[name] || String(existingVars[name]).trim() === "") data[name] = "—";
   }
   const signatureVarNames = (variableDefinitions ?? []).filter((d) => d.type === "signature").map((d) => d.name);
   for (const name of signatureVarNames) {

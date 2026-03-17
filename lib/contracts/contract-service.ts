@@ -93,8 +93,12 @@ export async function createContract({
     : undefined;
   const data = { ...variables };
   const signatureVarNames = (variableDefinitions ?? []).filter((d) => d.type === "signature").map((d) => d.name);
+  const contractNumberVarNames = (variableDefinitions ?? []).filter((d) => d.type === "contractNumber").map((d) => d.name);
   for (const name of signatureVarNames) {
     delete data[name];
+  }
+  for (const name of contractNumberVarNames) {
+    data[name] = "—";
   }
 
   let docxBuffer: Buffer;
@@ -254,8 +258,12 @@ export async function updateDraftContract({
     : undefined;
   const data = { ...variables };
   const signatureVarNames = (variableDefinitions ?? []).filter((d) => d.type === "signature").map((d) => d.name);
+  const contractNumberVarNames = (variableDefinitions ?? []).filter((d) => d.type === "contractNumber").map((d) => d.name);
   for (const name of signatureVarNames) {
     delete data[name];
+  }
+  for (const name of contractNumberVarNames) {
+    data[name] = "—";
   }
 
   let docxBuffer: Buffer;

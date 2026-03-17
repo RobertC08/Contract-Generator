@@ -102,7 +102,7 @@ La upload/ediție template în aplicație se trimite un JSON **variableDefinitio
 | Câmp | Obligatoriu | Descriere |
 |------|-------------|-----------|
 | `name` | Da | Exact numele folosit în DOCX (ex: `{name}`). |
-| `type` | Da | Unul din: `text`, `number`, `date`, `month`, `cui`, `signature`. |
+| `type` | Da | Unul din: `text`, `number`, `date`, `month`, `cui`, `signature`, `contractNumber`. |
 | `label` | Nu | Etichetă afișată deasupra câmpului în formular. |
 | `description` | Nu | Text explicativ afișat sub label; explică utilizatorului ce înseamnă câmpul. |
 | `options` | Nu | Array de stringuri (minim 2). Dacă e setat, în formular apare un **dropdown** cu aceste opțiuni în loc de text liber. Valoarea selectată este cea care se pune în document. |
@@ -116,6 +116,7 @@ La upload/ediție template în aplicație se trimite un JSON **variableDefinitio
 - **month** – lună.
 - **cui** – CUI; obligatoriu variabile legate `denumire`, `sediu`, `regCom`.
 - **signature** – semnătură (imagine); în DOCX poți folosi `{nume}` sau direct `{%nume}`.
+- **contractNumber** – număr de contract; se asignează automat la semnare și se incrementează per template (nu se completează în formular).
 
 ### 3.3 Exemplu variableDefinitions
 
@@ -125,7 +126,8 @@ La upload/ediție template în aplicație se trimite un JSON **variableDefinitio
   { "name": "Consimțământ imagine", "type": "text", "label": "Acord imagine elev" },
   { "name": "Cui/CNP", "type": "cui", "label": "CUI/CNP", "linkedVariables": { "denumire": "denumireFirma", "sediu": "sediuFirma", "regCom": "regComFirma" } },
   { "name": "dataContract", "type": "date", "label": "Data contract" },
-  { "name": "prestatorSignature", "type": "signature", "label": "Semnătura prestator" }
+  { "name": "prestatorSignature", "type": "signature", "label": "Semnătura prestator" },
+  { "name": "nrContract", "type": "contractNumber", "label": "Număr contract" }
 ]
 ```
 

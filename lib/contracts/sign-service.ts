@@ -1,5 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import type { PrismaClient, Prisma } from "@prisma/client";
+import type { VariableDefinitions } from "./variable-definitions";
 
 const OTP_EXPIRY_MINUTES = 10;
 const OTP_LENGTH = 6;
@@ -160,24 +161,47 @@ export async function submitSignature({
 
   const signer = await prisma.signer.findUnique({
     where: { id: signerId },
-    include: { contract: true },
+    include: {
+      contract: {
+        include: {
+          template: { select: { variableDefinitions: true } },
+        },
+      },
+    },
   });
   if (!signer || signer.signedAt) return { success: false, message: "Already signed or invalid signer" };
   if (signer.contract.status === "SIGNED") return { success: false, message: "Contract already fully signed" };
 
   const variables = signer.contract.variables as Record<string, unknown>;
-  const updated = { ...variables, [signatureVariableName]: signatureDataUrl } as Prisma.InputJsonValue;
+  const updated: Record<string, unknown> = { ...variables, [signatureVariableName]: signatureDataUrl };
 
-  await prisma.$transaction([
-    prisma.contract.update({
+  const variableDefinitions = signer.contract.template?.variableDefinitions as VariableDefinitions | null | undefined;
+  const contractNumberVarNames = Array.isArray(variableDefinitions)
+    ? variableDefinitions.filter((d) => d.type === "contractNumber").map((d) => d.name)
+    : [];
+
+  await prisma.$transaction(async (tx) => {
+    if (contractNumberVarNames.length > 0) {
+      const templateId = signer.contract.templateId;
+      const seq = await tx.contractNumberSequence.upsert({
+        where: { templateId },
+        create: { templateId, lastNumber: 1 },
+        update: { lastNumber: { increment: 1 } },
+      });
+      for (const name of contractNumberVarNames) {
+        updated[name] = String(seq.lastNumber);
+      }
+    }
+
+    await tx.contract.update({
       where: { id: signer.contractId },
-      data: { variables: updated, status: "SIGNED" },
-    }),
-    prisma.signer.update({
+      data: { variables: updated as Prisma.InputJsonValue, status: "SIGNED" },
+    });
+    await tx.signer.update({
       where: { id: signerId },
       data: { signedAt: new Date() },
-    }),
-    prisma.signatureAuditLog.create({
+    });
+    await tx.signatureAuditLog.create({
       data: {
         contractId: signer.contractId,
         signerId,
@@ -189,8 +213,8 @@ export async function submitSignature({
         documentHash: signer.contract.documentHash ?? undefined,
         contractVersion: signer.contract.templateVersion ?? undefined,
       },
-    }),
-  ]);
+    });
+  });
 
   return { success: true };
 }
