@@ -23,6 +23,8 @@
 # misc
 .DS_Store
 *.pem
+.convex-auth-keys.json
+.env.convex-auth
 
 # debug
 npm-debug.log*

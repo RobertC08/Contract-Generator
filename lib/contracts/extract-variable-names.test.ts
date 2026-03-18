@@ -30,4 +30,10 @@ describe("extractVariableNamesFromText", () => {
     const text = "{b} and {#x# A} and {@b} and {a}";
     expect(extractVariableNamesFromText(text)).toEqual(["b", "x", "a"]);
   });
+
+  it("keeps full placeholder label with colon and parentheses", () => {
+    expect(
+      extractVariableNamesFromText("{Eliberat de: } text {Perioada contract (in zile)}")
+    ).toEqual(["Eliberat de:", "Perioada contract (in zile)"]);
+  });
 });

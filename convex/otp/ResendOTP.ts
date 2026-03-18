@@ -1,0 +1,35 @@
+import { Email } from "@convex-dev/auth/providers/Email";
+import { alphabet, generateRandomString } from "oslo/crypto";
+import { Resend as ResendAPI } from "resend";
+import { VerificationCodeEmail } from "./VerificationCodeEmail";
+import { AUTH_EMAIL, AUTH_RESEND_KEY } from "../env";
+
+export const ResendOTP = Email({
+  id: "resend-otp",
+  apiKey: AUTH_RESEND_KEY ?? "",
+  maxAge: 60 * 20,
+  async generateVerificationToken() {
+    return generateRandomString(8, alphabet("0-9"));
+  },
+  async sendVerificationRequest({
+    identifier: email,
+    provider,
+    token,
+    expires,
+  }) {
+    if (process.env.OTP_DEV_LOG === "true") {
+      console.log("[OTP] Cod pentru", email, ":", token);
+    }
+    const resend = new ResendAPI(provider.apiKey);
+    const { error } = await resend.emails.send({
+      from: AUTH_EMAIL ?? "Contract Generator <onboarding@resend.dev>",
+      to: [email],
+      subject: "Cod de autentificare - Contract Generator",
+      react: VerificationCodeEmail({ code: token, expires }),
+    });
+
+    if (error) {
+      throw new Error(JSON.stringify(error));
+    }
+  },
+});

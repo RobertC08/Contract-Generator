@@ -3,6 +3,7 @@ import PizZip from "pizzip";
 import ImageModule from "docxtemplater-image-module-free";
 import { TemplateRenderError } from "./errors";
 import { extractVariableNamesFromText } from "./extract-variable-names";
+import { concatenateOoxmlWTextRuns } from "./ooxml-w-text";
 import type { VariableDefinitions } from "./variable-definitions";
 
 export { extractVariableNamesFromText };
@@ -179,7 +180,7 @@ export function extractVariableNamesFromDocx(templateBuffer: Buffer): string[] {
     const file = zip.files[fileName];
     if (!file || file.dir) continue;
     try {
-      fullText += file.asText();
+      fullText += concatenateOoxmlWTextRuns(file.asText());
     } catch {
       // skip
     }
@@ -201,7 +202,7 @@ export function extractDropdownsAndSiblingsFromDocx(templateBuffer: Buffer): Dro
     const file = zip.files[fileName];
     if (!file || file.dir) continue;
     try {
-      fullText += file.asText();
+      fullText += concatenateOoxmlWTextRuns(file.asText());
     } catch {
       // skip
     }

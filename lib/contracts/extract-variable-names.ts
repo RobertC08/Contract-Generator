@@ -2,15 +2,16 @@
  * Extracts variable names from text that contains placeholders.
  * Same rules as DOCX: {name}, {#dropdownName# label}, {@siblingName}, {%imageName}.
  * Use this in both Node (docx-generator) and client (edit page) to avoid wrong names like "#x# label" or "@y".
- * Only returns names that match the variable name pattern (letters, digits, space, _, /, ., -) to avoid XML/HTML garbage.
+ * Simple {…} placeholders: numele = text între acolade; caractere permise aliniate cu variableDefinitions.
  */
 
-const VALID_VAR_NAME = /^[\p{L}\p{N}_/\s.-]+$/u;
-const VALID_VAR_NAME_CHUNK = /[\p{L}\p{N}_/\s.-]+/gu;
+const VALID_VAR_NAME = /^[\p{L}\p{N}_/\s.(),:-]+$/u;
+const VALID_VAR_NAME_CHUNK = /[\p{L}\p{N}_/\s.(),:-]+/gu;
 
 function normalizeCapturedName(raw: string): string | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
+  if (!/[{}]/.test(trimmed)) return trimmed;
   if (VALID_VAR_NAME.test(trimmed)) return trimmed;
   const chunks = trimmed.match(VALID_VAR_NAME_CHUNK);
   if (!chunks || chunks.length === 0) return null;
@@ -28,23 +29,24 @@ const IMAGE_PLACEHOLDER_REGEX = /\{%([^{}]+)\}/g;
 const SIMPLE_PLACEHOLDER_REGEX = /\{(?!%)(?!#)(?!@)([^{}]+)\}/g;
 
 export function extractVariableNamesFromText(fullText: string): string[] {
-  const seen = new Set<string>();
-  const order: { index: number; name: string }[] = [];
-  function add(match: RegExpExecArray, nameIndex: number) {
+  const firstIndex = new Map<string, number>();
+  function note(match: RegExpExecArray, nameIndex: number) {
     const name = normalizeCapturedName(match[nameIndex] ?? "");
-    if (!name || seen.has(name)) return;
-    seen.add(name);
-    order.push({ index: match.index ?? 0, name });
+    if (!name) return;
+    const idx = match.index ?? 0;
+    const prev = firstIndex.get(name);
+    if (prev === undefined || idx < prev) firstIndex.set(name, idx);
   }
   let m: RegExpExecArray | null;
   const dropRe = new RegExp(DROPDOWN_PLACEHOLDER_REGEX.source, "g");
-  while ((m = dropRe.exec(fullText)) !== null) add(m, 1);
+  while ((m = dropRe.exec(fullText)) !== null) note(m, 1);
   const sibRe = new RegExp(SIBLING_PLACEHOLDER_REGEX.source, "g");
-  while ((m = sibRe.exec(fullText)) !== null) add(m, 1);
+  while ((m = sibRe.exec(fullText)) !== null) note(m, 1);
   const imageRe = new RegExp(IMAGE_PLACEHOLDER_REGEX.source, "g");
-  while ((m = imageRe.exec(fullText)) !== null) add(m, 1);
+  while ((m = imageRe.exec(fullText)) !== null) note(m, 1);
   const simpleRe = new RegExp(SIMPLE_PLACEHOLDER_REGEX.source, "g");
-  while ((m = simpleRe.exec(fullText)) !== null) add(m, 1);
-  order.sort((a, b) => a.index - b.index);
-  return order.map((o) => o.name);
+  while ((m = simpleRe.exec(fullText)) !== null) note(m, 1);
+  return [...firstIndex.entries()]
+    .sort((a, b) => a[1] - b[1])
+    .map(([name]) => name);
 }

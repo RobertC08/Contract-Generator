@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Contract Generator - SaaS
 
-## Getting Started
+Generator de contracte cu șabloane DOCX, semnare electronică și audit.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Frontend**: Vite + React + TanStack Router + shadcn/ui
+- **Backend**: Convex (auth, DB, storage, HTTP)
+- **Autentificare**: Convex Auth (Email OTP, Google, GitHub)
+- **Plăți**: Stripe (abonamente)
+- **Email**: Resend
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Instalare dependențe: `npm install`
+2. Variabile de mediu:
+   - `.env.local`: `VITE_CONVEX_URL` (URL Convex deployment)
+   - Convex dashboard: `AUTH_RESEND_KEY`, `AUTH_EMAIL`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SITE_URL`, OAuth credentials
+3. `npm run dev` - frontend (Vite) + backend (Convex)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripturi
 
-## Learn More
+- `npm run dev` - development (frontend + Convex)
+- `npm run build` - build production
+- `npm run preview` - preview build
+- `npm run typecheck` - verificare tipuri
+- `npm run lint` - ESLint
+- `npm test` - teste
 
-To learn more about Next.js, take a look at the following resources:
+## Rute principale
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `/` - landing
+- `/autentificare` - login (Email OTP, Google, GitHub)
+- `/bun-venit` - onboarding (username + organizație)
+- `/panou` - dashboard
+- `/panou/sabloane` - șabloane
+- `/panou/contracte` - contracte
+- `/panou/audit` - audit
+- `/panou/setari` - setări (profil, abonament, organizație)
+- `/semneaza/:token` - semnare (public)
+- `/contract/completeaza/:token` - completare draft (public)
+- `/invitatie?token=` - acceptare invitație organizație

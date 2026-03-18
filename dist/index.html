@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      if (
+        localStorage.theme === "dark" ||
+        (!("theme" in localStorage) &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches)
+      ) {
+        document.documentElement.classList.add("dark");
+        document.documentElement.style.colorScheme = "dark";
+      } else {
+        document.documentElement.classList.remove("dark");
+        document.documentElement.style.colorScheme = "light";
+      }
+    </script>
+    <title>Contract Generator</title>
+    <script type="module" crossorigin src="/assets/index-C3tRYPpz.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-D-Wtiuzd.css">
+  </head>
+  <body class="h-auto w-full">
+    <div id="root"></div>
+  </body>
+</html>
