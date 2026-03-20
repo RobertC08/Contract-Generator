@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
+  applyStudentGuardianSingleFieldToPayload,
   coalesceFromCompositeName,
   expandPlaceholderToInputVariableKeys,
   mergeCoalesceCompositePlaceholders,
+  studentGuardianCompositeKind,
 } from "./template-coalesce";
 
 describe("expandPlaceholderToInputVariableKeys", () => {
@@ -136,5 +138,35 @@ describe("mergeCoalesceCompositePlaceholders", () => {
     );
     expect(out["studentAddress | guardianAddress"]).toBe("G1");
     expect(out.hasGuardian).toBeUndefined();
+  });
+});
+
+describe("studentGuardianCompositeKind", () => {
+  it("detects name and address pairs regardless of pipe order", () => {
+    expect(studentGuardianCompositeKind("studentFullName | guardianFullName")).toBe("name");
+    expect(studentGuardianCompositeKind("guardianFullName | studentFullName")).toBe("name");
+    expect(studentGuardianCompositeKind("studentAddress | guardianAddress")).toBe("address");
+    expect(studentGuardianCompositeKind("x | y")).toBeNull();
+    expect(studentGuardianCompositeKind("studentFullName")).toBeNull();
+  });
+});
+
+describe("applyStudentGuardianSingleFieldToPayload", () => {
+  it("writes single field value to student or guardian atoms", () => {
+    const names = ["studentFullName | guardianFullName"] as const;
+    const noG = applyStudentGuardianSingleFieldToPayload(
+      { "studentFullName | guardianFullName": "Unu" },
+      names,
+      { hasGuardian: "false" }
+    );
+    expect(noG.studentFullName).toBe("Unu");
+    expect(noG.guardianFullName).toBe("");
+    const yesG = applyStudentGuardianSingleFieldToPayload(
+      { "studentFullName | guardianFullName": "Doi" },
+      names,
+      { hasGuardian: "true" }
+    );
+    expect(yesG.studentFullName).toBe("");
+    expect(yesG.guardianFullName).toBe("Doi");
   });
 });

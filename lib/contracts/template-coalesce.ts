@@ -12,6 +12,47 @@ export function expandPlaceholderToInputVariableKeys(placeholderName: string): s
     .filter((s) => s.length > 0);
 }
 
+export type StudentGuardianCompositeKind = "name" | "address";
+
+/** Placeholder-ele elev|apărător se afișează ca un singur câmp în link-ul de completare. */
+export function studentGuardianCompositeKind(
+  placeholderName: string
+): StudentGuardianCompositeKind | null {
+  if (!placeholderName.includes("|")) return null;
+  const parts = placeholderName
+    .split("|")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  if (parts.length !== 2) return null;
+  const set = new Set(parts);
+  if (set.has("studentFullName") && set.has("guardianFullName")) return "name";
+  if (set.has("studentAddress") && set.has("guardianAddress")) return "address";
+  return null;
+}
+
+/** După completarea unui singur câmp pentru perechea elev|apărător, scrie valoarea în cheia atomică potrivită. */
+export function applyStudentGuardianSingleFieldToPayload(
+  data: Record<string, string>,
+  templatePlaceholderNames: readonly string[],
+  context: Record<string, unknown>
+): Record<string, string> {
+  const out = { ...data };
+  const gp = guardianPrimary(context);
+  for (const name of templatePlaceholderNames) {
+    const kind = studentGuardianCompositeKind(name);
+    if (!kind) continue;
+    const raw = String(out[name] ?? "").trim();
+    if (kind === "name") {
+      out.studentFullName = gp ? "" : raw;
+      out.guardianFullName = gp ? raw : "";
+    } else {
+      out.studentAddress = gp ? "" : raw;
+      out.guardianAddress = gp ? raw : "";
+    }
+  }
+  return out;
+}
+
 function guardianPrimary(data: Record<string, unknown>): boolean {
   const hg = String(data.hasGuardian ?? "").trim().toLowerCase();
   return hg === "true" || hg === "1" || hg === "yes";

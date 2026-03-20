@@ -18,8 +18,11 @@ import {
   computeContractDurationDays,
 } from "@lib/contracts/derived-contract-variables";
 import {
+  applyStudentGuardianSingleFieldToPayload,
+  coalesceFromCompositeName,
   expandPlaceholderToInputVariableKeys,
   mergeCoalesceCompositePlaceholders,
+  studentGuardianCompositeKind,
 } from "@lib/contracts/template-coalesce";
 import {
   CONTRACT_DATE_FIELD_NAME,
@@ -113,11 +116,21 @@ function ContractCompleteazaPage() {
         const names = namesFromDocx ?? getVarNamesFromContentAndDefs(hasContent ? content : null, defs);
         setVarNames(names);
         const merged: Record<string, string> = {};
+        const ctxForCoalesce: Record<string, unknown> = fillData?.coalesceContext
+          ? {
+              hasGuardian: fillData.coalesceContext.hasGuardian,
+              contractFor: fillData.coalesceContext.contractFor,
+            }
+          : {};
         names.forEach((n) => {
           const v = initialVars[n];
           merged[n] = typeof v === "string" ? v : "";
         });
         for (const n of names) {
+          if (studentGuardianCompositeKind(n)) {
+            merged[n] = coalesceFromCompositeName(n, { ...initialVars, ...ctxForCoalesce });
+            continue;
+          }
           for (const part of expandPlaceholderToInputVariableKeys(n)) {
             if (part in merged) continue;
             merged[part] = typeof initialVars[part] === "string" ? initialVars[part] : "";
@@ -309,6 +322,12 @@ function ContractCompleteazaPage() {
     const out: string[] = [];
     for (const name of sortedTemplateNames) {
       if (name.includes("|")) {
+        if (studentGuardianCompositeKind(name)) {
+          if (!isFormInputKey(name) || seen.has(name)) continue;
+          seen.add(name);
+          out.push(name);
+          continue;
+        }
         for (const part of expandPlaceholderToInputVariableKeys(name)) {
           if (!isFormInputKey(part) || seen.has(part)) continue;
           seen.add(part);
@@ -375,12 +394,18 @@ function ContractCompleteazaPage() {
       payload["Perioada contract (in zile)"] = dur;
     }
     const cc = fillData?.coalesceContext;
-    const payloadWithCoalesce = mergeCoalesceCompositePlaceholders(
+    const coalesceCtx = cc
+      ? { contractFor: cc.contractFor, hasGuardian: cc.hasGuardian }
+      : undefined;
+    const payloadWithAtoms = applyStudentGuardianSingleFieldToPayload(
       payload,
       varNames,
-      cc
-        ? { contractFor: cc.contractFor, hasGuardian: cc.hasGuardian }
-        : undefined
+      coalesceCtx ?? {}
+    );
+    const payloadWithCoalesce = mergeCoalesceCompositePlaceholders(
+      payloadWithAtoms,
+      varNames,
+      coalesceCtx
     );
     if (!contractId) return;
     try {
