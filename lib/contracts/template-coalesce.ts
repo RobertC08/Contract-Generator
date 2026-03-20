@@ -2,6 +2,16 @@
  * DOCX `{studentFullName | guardianFullName}` and `{studentAddress | guardianAddress}`:
  * if `hasGuardian` is true (integration metadata), use guardian then student; else student then guardian.
  */
+
+/** Keys to collect in the fill form for a template placeholder (one field per segment if `|`). */
+export function expandPlaceholderToInputVariableKeys(placeholderName: string): string[] {
+  if (!placeholderName.includes("|")) return [placeholderName];
+  return placeholderName
+    .split("|")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
 function guardianPrimary(data: Record<string, unknown>): boolean {
   const hg = String(data.hasGuardian ?? "").trim().toLowerCase();
   return hg === "true" || hg === "1" || hg === "yes";

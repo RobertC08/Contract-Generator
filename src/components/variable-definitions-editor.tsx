@@ -129,7 +129,7 @@ export function VariableDefinitionsEditor({
             <div className="flex gap-2 items-start">
               <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
-                  <label className={labelClass}>Nume</label>
+                  <label className={labelClass}>Nume (placeholder DOCX)</label>
                   <input
                     type="text"
                     value={def.name}
@@ -158,6 +158,23 @@ export function VariableDefinitionsEditor({
                       </option>
                     ))}
                   </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>Alias în formular (opțional)</label>
+                  <input
+                    type="text"
+                    value={def.label ?? ""}
+                    onFocus={() => onVariableFocus?.(def.name)}
+                    onChange={(e) => {
+                      const t = e.target.value.trim();
+                      updateAt(index, { label: t.length > 0 ? t : undefined });
+                    }}
+                    className={inputClass}
+                    placeholder='Ex: Nume complet, Adresă domiciliu'
+                  />
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    Textul afișat semnatarului la completare. La variabile cu „|”, fiecărui câmp i se adaugă automat numele variabilei în paranteză.
+                  </p>
                 </div>
               </div>
               <button

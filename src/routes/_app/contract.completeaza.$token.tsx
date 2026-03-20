@@ -7,17 +7,20 @@ import { extractVariableNamesFromText } from "@lib/contracts/extract-variable-na
 import type { VariableDefinitions } from "@lib/contracts/variable-definitions";
 import {
   getVariableDefinition,
+  getVariableLabel,
   getVariableType,
   formatDateToDisplay,
   monthCodeToName,
-  humanizeVariableName,
   addDays,
 } from "@lib/contracts/variable-utils";
 import {
   DERIVED_NO_INPUT_VAR_NAMES,
   computeContractDurationDays,
 } from "@lib/contracts/derived-contract-variables";
-import { mergeCoalesceCompositePlaceholders } from "@lib/contracts/template-coalesce";
+import {
+  expandPlaceholderToInputVariableKeys,
+  mergeCoalesceCompositePlaceholders,
+} from "@lib/contracts/template-coalesce";
 import {
   CONTRACT_DATE_FIELD_NAME,
   todayIsoDateEuropeBucharest,
@@ -114,6 +117,12 @@ function ContractCompleteazaPage() {
           const v = initialVars[n];
           merged[n] = typeof v === "string" ? v : "";
         });
+        for (const n of names) {
+          for (const part of expandPlaceholderToInputVariableKeys(n)) {
+            if (part in merged) continue;
+            merged[part] = typeof initialVars[part] === "string" ? initialVars[part] : "";
+          }
+        }
         const dropdownOpts: Record<string, string[]> = {};
         const dropdownSibs: Record<string, string[]> = {};
         const order: string[] = [];
@@ -282,21 +291,36 @@ function ContractCompleteazaPage() {
     const dropdownKeys = Object.keys(dropdownOptions);
     const list = new Set(varNames);
     dropdownKeys.forEach((k) => list.add(k));
-    const filtered = [...list].filter(
-      (name) =>
-        getVariableType(variableDefinitions, name) !== "signature" &&
-        getVariableType(variableDefinitions, name) !== "contractNumber" &&
-        !DERIVED_NO_INPUT_VAR_NAMES.includes(name) &&
-        !name.includes("|") &&
-        !siblingVarNames.has(name)
-    );
-    if (varOrder.length === 0) return filtered;
+
+    const isFormInputKey = (name: string) =>
+      getVariableType(variableDefinitions, name) !== "signature" &&
+      getVariableType(variableDefinitions, name) !== "contractNumber" &&
+      !DERIVED_NO_INPUT_VAR_NAMES.includes(name) &&
+      !siblingVarNames.has(name);
+
     const orderIdx = new Map(varOrder.map((n, i) => [n, i]));
-    return [...filtered].sort((a, b) => {
+    const sortedTemplateNames = [...list].sort((a, b) => {
       const ia = orderIdx.get(a) ?? 1e9;
       const ib = orderIdx.get(b) ?? 1e9;
       return ia - ib;
     });
+
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const name of sortedTemplateNames) {
+      if (name.includes("|")) {
+        for (const part of expandPlaceholderToInputVariableKeys(name)) {
+          if (!isFormInputKey(part) || seen.has(part)) continue;
+          seen.add(part);
+          out.push(part);
+        }
+        continue;
+      }
+      if (!isFormInputKey(name) || seen.has(name)) continue;
+      seen.add(name);
+      out.push(name);
+    }
+    return out;
   }, [varNames, variableDefinitions, varOrder, dropdownOptions, siblingVarNames]);
 
   const signHrefWithBack = useMemo(() => {
@@ -331,13 +355,13 @@ function ContractCompleteazaPage() {
     setStatus("loading");
     setErrorMessage(null);
     const payload: Record<string, string> = { ...variables };
-    varNames.forEach((name) => {
+    for (const name of Object.keys(payload)) {
       const v = variables[name];
-      if (v === undefined) return;
+      if (v === undefined) continue;
       const type = getVariableType(variableDefinitions, name);
       if (type === "date") payload[name] = formatDateToDisplay(v);
       else if (type === "month") payload[name] = monthCodeToName(v);
-    });
+    }
     if (varNames.includes("Data_final_un_an") && (variables["Data"] ?? "").toString().trim()) {
       const iso = addDays((variables["Data"] ?? "").toString().trim(), 365);
       payload["Data_final_un_an"] = iso ? formatDateToDisplay(iso) : "";
@@ -569,7 +593,7 @@ function ContractCompleteazaPage() {
             const options = dropdownMeta.dropdownOptions[name];
             if (options) {
               const def = getVariableDefinition(variableDefinitions, name);
-              const label = def?.label ?? humanizeVariableName(name);
+              const label = getVariableLabel(def, name);
               return (
                 <div key={name} className="space-y-1">
                   <label htmlFor={`var-${name}`} className={labelClass}>

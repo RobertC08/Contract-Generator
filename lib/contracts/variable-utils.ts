@@ -1,4 +1,5 @@
 import type { VariableDefinition, VariableDefinitions } from "./variable-definitions";
+import { expandPlaceholderToInputVariableKeys } from "./template-coalesce";
 
 export const PREDEFINED_VAR_TYPES: Record<string, VariableDefinition["type"]> = {
   luna: "month",
@@ -48,6 +49,12 @@ export function getVariableDefinition(
 ): VariableDefinition | undefined {
   const fromDefs = defs?.find((d) => d.name === name);
   if (fromDefs) return fromDefs;
+  const fromCompositeParent = defs?.find(
+    (d) =>
+      d.name.includes("|") &&
+      expandPlaceholderToInputVariableKeys(d.name).includes(name)
+  );
+  if (fromCompositeParent) return fromCompositeParent;
   const predefinedType = PREDEFINED_VAR_TYPES[name];
   if (predefinedType === "cui")
     return { name, type: "cui", linkedVariables: { ...DEFAULT_CUI_LINKED } };
@@ -65,10 +72,17 @@ export function getVariableType(
 
 export function getVariableLabel(
   def: VariableDefinition | undefined,
-  name: string
+  fieldKey: string
 ): string {
-  if (def?.label) return def.label;
-  return humanizeVariableName(name);
+  const base = def?.label?.trim();
+  if (def && base && def.name.includes("|")) {
+    const parts = expandPlaceholderToInputVariableKeys(def.name);
+    if (parts.length > 1 && fieldKey !== def.name) {
+      return `${base} (${humanizeVariableName(fieldKey)})`;
+    }
+  }
+  if (base) return base;
+  return humanizeVariableName(fieldKey);
 }
 
 export function formatDateToDisplay(iso: string): string {

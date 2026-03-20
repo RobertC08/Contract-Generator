@@ -42,6 +42,18 @@ describe("getVariableDefinition", () => {
     expect(getVariableDefinition(defs, "missing")).toBeUndefined();
   });
 
+  it("resolves segment of composite placeholder to parent definition", () => {
+    const withComposite: VariableDefinition[] = [
+      {
+        name: "studentFullName | guardianFullName",
+        type: "text",
+        label: "Nume complet",
+      },
+    ];
+    expect(getVariableDefinition(withComposite, "studentFullName")).toEqual(withComposite[0]);
+    expect(getVariableDefinition(withComposite, "guardianFullName")).toEqual(withComposite[0]);
+  });
+
   it("returns undefined for null or empty defs", () => {
     expect(getVariableDefinition(null, "x")).toBeUndefined();
     expect(getVariableDefinition(undefined, "x")).toBeUndefined();
@@ -78,6 +90,16 @@ describe("getVariableLabel", () => {
 
   it("returns humanized name when def is undefined", () => {
     expect(getVariableLabel(undefined, "someVar")).toBe("Some Var");
+  });
+
+  it("composite with label disambiguates each expanded field", () => {
+    const def: VariableDefinition = {
+      name: "studentFullName | guardianFullName",
+      type: "text",
+      label: "Nume complet",
+    };
+    expect(getVariableLabel(def, "studentFullName")).toBe("Nume complet (Student Fullname)");
+    expect(getVariableLabel(def, "guardianFullName")).toBe("Nume complet (Guardian Fullname)");
   });
 });
 

@@ -1,8 +1,17 @@
 import { describe, it, expect } from "vitest";
 import {
   coalesceFromCompositeName,
+  expandPlaceholderToInputVariableKeys,
   mergeCoalesceCompositePlaceholders,
 } from "./template-coalesce";
+
+describe("expandPlaceholderToInputVariableKeys", () => {
+  it("splits on pipe or returns single key", () => {
+    expect(expandPlaceholderToInputVariableKeys("x")).toEqual(["x"]);
+    expect(expandPlaceholderToInputVariableKeys("a | b")).toEqual(["a", "b"]);
+    expect(expandPlaceholderToInputVariableKeys(" a | b ")).toEqual(["a", "b"]);
+  });
+});
 
 describe("coalesceFromCompositeName", () => {
   it("returns first non-empty part for generic keys", () => {
