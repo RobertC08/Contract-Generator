@@ -36,4 +36,15 @@ describe("extractVariableNamesFromText", () => {
       extractVariableNamesFromText("{Eliberat de: } text {Perioada contract (in zile)}")
     ).toEqual(["Eliberat de:", "Perioada contract (in zile)"]);
   });
+
+  it("treats pipe coalesce as one variable name", () => {
+    expect(
+      extractVariableNamesFromText("{studentFullName | guardianFullName} la {studentAddress | guardianAddress}")
+    ).toEqual(["studentFullName | guardianFullName", "studentAddress | guardianAddress"]);
+  });
+
+  it("allows letters (diacritics), digits, _ / space . , ( ) : | - in simple names", () => {
+    expect(extractVariableNamesFromText("{Nume_școală: X} și {a/b}")).toEqual(["Nume_școală: X", "a/b"]);
+    expect(extractVariableNamesFromText("{client-name (2024), v2}")).toEqual(["client-name (2024), v2"]);
+  });
 });

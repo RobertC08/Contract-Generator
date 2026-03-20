@@ -4,7 +4,7 @@ import { action } from "../_generated/server";
 import { api, internal } from "../_generated/api";
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
-import { SITE_URL } from "../env";
+import { clientFacingBaseUrl } from "../env";
 import { requireOrg } from "./authHelpers";
 
 type TemplateListItem = {
@@ -202,7 +202,7 @@ export const apiGetSigningLinks = action({
       orgId,
     });
     if (!doc) throw new Error("Contract not found");
-    const baseUrl = SITE_URL ?? "";
+    const baseUrl = clientFacingBaseUrl();
     const signers = doc.signers as SignerWithToken[];
     const signingLinks = signers.map((s) => ({
       signerId: s._id,

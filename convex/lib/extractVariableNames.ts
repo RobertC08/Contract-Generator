@@ -1,5 +1,6 @@
-const VALID_VAR_NAME = /^[\p{L}\p{N}_/\s.(),:-]+$/u;
-const VALID_VAR_NAME_CHUNK = /[\p{L}\p{N}_/\s.(),:-]+/gu;
+/** Litere (incl. diacritice), cifre, _ / spațiu . , ( ) : | - */
+const VALID_VAR_NAME = /^[\p{L}\p{N}_/\s.,():|-]+$/u;
+const VALID_VAR_NAME_CHUNK = /[\p{L}\p{N}_/\s.,():|-]+/gu;
 
 function normalizeCapturedName(raw: string): string | null {
   const trimmed = raw.trim();

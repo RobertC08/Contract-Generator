@@ -5,8 +5,18 @@ import { action } from "../_generated/server";
 import { api, internal } from "../_generated/api";
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
-import { renderDocx, computeDocumentHash, TemplateRenderError } from "../lib/docxGenerator.node";
-import { SITE_URL } from "../env";
+import {
+  renderDocx,
+  computeDocumentHash,
+  TemplateRenderError,
+  extractVariableNamesFromDocx,
+} from "../lib/docxGenerator.node";
+import { clientFacingBaseUrl } from "../env";
+import {
+  pickWebhookMetadata,
+  buildPrefillVariablesList,
+  collectTemplateVariableNames,
+} from "../../lib/integration/shareable-draft-prefill";
 
 const SIGNING_TOKEN_EXPIRY_HOURS = 72;
 
@@ -133,7 +143,7 @@ export const createContract = action({
     });
 
     const signersList = await ctx.runQuery(internal.contracts.getSignersForContract, { contractId });
-    const baseUrl = SITE_URL ?? "";
+    const baseUrl = clientFacingBaseUrl();
     const signingLinks = signersList.map((s) => ({
       signerId: s._id,
       email: s.email,
@@ -163,7 +173,27 @@ export const createShareableDraft = action({
     }
     const fillToken = randomBytes(32).toString("base64url");
     const signerToken = generateSigningToken();
-    const meta = args.integrationMetadata;
+    const templateFile = await ctx.runQuery(internal.contracts.getTemplateFile, { templateId: args.templateId });
+    if (!templateFile) throw new Error("Template not found");
+
+    let fromDocx: string[] = [];
+    try {
+      const templateUrl = await ctx.storage.getUrl(templateFile.fileStorageId);
+      if (templateUrl) {
+        const templateRes = await fetch(templateUrl);
+        if (templateRes.ok) {
+          fromDocx = extractVariableNamesFromDocx(Buffer.from(await templateRes.arrayBuffer()));
+        }
+      }
+    } catch {
+      // use variableDefinitions only
+    }
+
+    const allowedNames = collectTemplateVariableNames(fromDocx, templateFile.variableDefinitions);
+    const metaFull = args.integrationMetadata ?? {};
+    const webhookMeta = pickWebhookMetadata(metaFull);
+    const variablesList = buildPrefillVariablesList(metaFull, allowedNames);
+
     const contractId = await ctx.runMutation(internal.contracts.createShareableDraftMutation, {
       templateId: args.templateId,
       parentContractId: args.parentContractId,
@@ -171,7 +201,8 @@ export const createShareableDraft = action({
       fillToken,
       signerToken,
       templateVersion: template.version,
-      integrationMetadata: meta && Object.keys(meta).length > 0 ? meta : undefined,
+      variablesList,
+      integrationMetadata: Object.keys(webhookMeta).length > 0 ? webhookMeta : undefined,
       integrationWebhookUrl: args.integrationWebhookUrl,
     });
     await ctx.runAction(
@@ -179,7 +210,7 @@ export const createShareableDraft = action({
       (api as any)["contracts/actions"].generateDocument,
       { contractId }
     );
-    const baseUrl = SITE_URL ?? "";
+    const baseUrl = clientFacingBaseUrl();
     const fillLink = baseUrl ? `${baseUrl}/contract/completeaza/${fillToken}` : `/contract/completeaza/${fillToken}`;
     return { contractId, fillLink };
   },
@@ -285,7 +316,7 @@ export const updateDraftAndGenerateDocument = action({
       { contractId: args.contractId }
     );
     const signersList = await ctx.runQuery(internal.contracts.getSignersForContract, { contractId: args.contractId });
-    const baseUrl = SITE_URL ?? "";
+    const baseUrl = clientFacingBaseUrl();
     const signingLinks = signersList.map((s) => ({
       signerId: s._id,
       email: s.email,

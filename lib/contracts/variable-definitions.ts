@@ -24,8 +24,8 @@ export const variableDefinitionSchema = z
       .string()
       .min(1)
       .regex(
-        /^[\p{L}\p{N}_/\s.(),:-]+$/u,
-        "Doar litere (inclusiv diacritice), cifre, _, /, spațiu, ., -, ( ), : și ,"
+        /^[\p{L}\p{N}_/\s.,():|-]+$/u,
+        "Doar litere (inclusiv diacritice), cifre, _, /, spațiu, ., virgulă, -, ( ), : și | (ex. studentFullName | guardianFullName)"
       ),
     type: z.enum(VARIABLE_TYPES),
     label: z.string().optional(),

@@ -6,6 +6,9 @@ import PizZip from "pizzip";
 import ImageModule from "docxtemplater-image-module-free";
 import { extractVariableNamesFromText } from "./extractVariableNames";
 import { concatenateOoxmlWTextRuns } from "./ooxmlWText";
+import { mergeDerivedContractVariables } from "../../lib/contracts/derived-contract-variables";
+import { mergeCoalesceCompositePlaceholders } from "../../lib/contracts/template-coalesce";
+import { mergeDefaultContractDataField } from "../../lib/contracts/contract-data-defaults";
 
 export type VariableDefinitions = Array<{ name: string; type: string }>;
 
@@ -246,11 +249,15 @@ export function renderDocx(
   const sanitized = Object.fromEntries(
     Object.entries(data).map(([k, v]) => [k, v === undefined || v === null ? UNDEFINED_PLACEHOLDER : v])
   ) as Record<string, unknown>;
+  const withDerived = mergeDerivedContractVariables(sanitized);
+  const placeholderNames = extractVariableNamesFromDocx(templateBuffer);
+  const withCoalesce = mergeCoalesceCompositePlaceholders(withDerived, placeholderNames);
+  const withTodayData = mergeDefaultContractDataField(withCoalesce);
   const meta = extractDropdownsAndSiblingsFromDocx(templateBuffer);
   const hasDropdowns = Object.keys(meta.dropdownOptions).length > 0;
   const zip = new PizZip(templateBuffer);
   if (hasDropdowns) {
-    preprocessDropdownAndSiblingInZip(zip, sanitized as Record<string, string>, meta);
+    preprocessDropdownAndSiblingInZip(zip, withTodayData as Record<string, string>, meta);
   }
   const defs = Array.isArray(variableDefinitions) ? variableDefinitions : [];
   const signatureVarNames = defs.filter((d) => d.type === "signature").map((d) => d.name);
@@ -263,7 +270,7 @@ export function renderDocx(
     nullGetter: () => UNDEFINED_PLACEHOLDER,
   });
   try {
-    doc.render(sanitized);
+    doc.render(withTodayData);
   } catch (e) {
     throw new TemplateRenderError(toFriendlyMessage(e));
   }

@@ -30,7 +30,7 @@ describe("variableDefinitionSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts name with spaces, slash, dot, hyphen, colon, parentheses, comma", () => {
+  it("accepts name with spaces, slash, dot, hyphen, colon, parentheses, comma, pipe", () => {
     expect(variableDefinitionSchema.safeParse({ name: "client name", type: "text" }).success).toBe(true);
     expect(variableDefinitionSchema.safeParse({ name: "Cui/CNP", type: "text" }).success).toBe(true);
     expect(variableDefinitionSchema.safeParse({ name: "Art. 1", type: "text" }).success).toBe(true);
@@ -38,6 +38,12 @@ describe("variableDefinitionSchema", () => {
       variableDefinitionSchema.safeParse({ name: "Perioada contract (in zile)", type: "text" }).success
     ).toBe(true);
     expect(variableDefinitionSchema.safeParse({ name: "Eliberat de:", type: "text" }).success).toBe(true);
+    expect(
+      variableDefinitionSchema.safeParse({
+        name: "studentFullName | guardianFullName",
+        type: "text",
+      }).success
+    ).toBe(true);
   });
 
   it("rejects invalid name (disallowed characters)", () => {

@@ -2,11 +2,12 @@
  * Extracts variable names from text that contains placeholders.
  * Same rules as DOCX: {name}, {#dropdownName# label}, {@siblingName}, {%imageName}.
  * Use this in both Node (docx-generator) and client (edit page) to avoid wrong names like "#x# label" or "@y".
- * Simple {…} placeholders: numele = text între acolade; caractere permise aliniate cu variableDefinitions.
+ * Simple {…} placeholders: numele = text între acolade.
+ * Caractere permise: litere (incl. diacritice), cifre, _ / spațiu . , - ( ) : și | (ex. „studentFullName | guardianFullName”).
  */
 
-const VALID_VAR_NAME = /^[\p{L}\p{N}_/\s.(),:-]+$/u;
-const VALID_VAR_NAME_CHUNK = /[\p{L}\p{N}_/\s.(),:-]+/gu;
+const VALID_VAR_NAME = /^[\p{L}\p{N}_/\s.,():|-]+$/u;
+const VALID_VAR_NAME_CHUNK = /[\p{L}\p{N}_/\s.,():|-]+/gu;
 
 function normalizeCapturedName(raw: string): string | null {
   const trimmed = raw.trim();

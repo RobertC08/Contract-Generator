@@ -13,14 +13,21 @@ import {
   humanizeVariableName,
   addDays,
 } from "@lib/contracts/variable-utils";
+import {
+  DERIVED_NO_INPUT_VAR_NAMES,
+  computeContractDurationDays,
+} from "@lib/contracts/derived-contract-variables";
+import { mergeCoalesceCompositePlaceholders } from "@lib/contracts/template-coalesce";
+import {
+  CONTRACT_DATE_FIELD_NAME,
+  todayIsoDateEuropeBucharest,
+} from "@lib/contracts/contract-data-defaults";
 import { VariableInput } from "@/components/variable-input";
 
 type DropdownSiblingMeta = {
   dropdownOptions: Record<string, string[]>;
   dropdownSiblings: Record<string, string[]>;
 };
-
-const DERIVED_VAR_NAMES = ["Data_final_un_an"];
 
 function getVarNamesFromContentAndDefs(content: string | null, variableDefinitions: VariableDefinitions | null): string[] {
   const fromContent = content ? extractVariableNamesFromText(content) : [];
@@ -133,6 +140,13 @@ function ContractCompleteazaPage() {
         const orderWithDropdowns = dropdownKeys.length
           ? [...new Set([...baseOrder, ...dropdownKeys])]
           : baseOrder;
+        if (
+          names.includes(CONTRACT_DATE_FIELD_NAME) &&
+          !String(merged[CONTRACT_DATE_FIELD_NAME] ?? "").trim()
+        ) {
+          const t = todayIsoDateEuropeBucharest();
+          if (t) merged[CONTRACT_DATE_FIELD_NAME] = t;
+        }
         setVariables(merged);
         setDropdownOptions(dropdownOpts);
         setDropdownSiblings(dropdownSibs);
@@ -272,7 +286,8 @@ function ContractCompleteazaPage() {
       (name) =>
         getVariableType(variableDefinitions, name) !== "signature" &&
         getVariableType(variableDefinitions, name) !== "contractNumber" &&
-        !DERIVED_VAR_NAMES.includes(name) &&
+        !DERIVED_NO_INPUT_VAR_NAMES.includes(name) &&
+        !name.includes("|") &&
         !siblingVarNames.has(name)
     );
     if (varOrder.length === 0) return filtered;
@@ -327,9 +342,21 @@ function ContractCompleteazaPage() {
       const iso = addDays((variables["Data"] ?? "").toString().trim(), 365);
       payload["Data_final_un_an"] = iso ? formatDateToDisplay(iso) : "";
     }
+    const dur = computeContractDurationDays(
+      payload["contractStartDate"] ?? variables["contractStartDate"],
+      payload["contractEndDate"] ?? variables["contractEndDate"]
+    );
+    if (dur !== "") {
+      payload["contractDurationDays"] = dur;
+      payload["Perioada contract (in zile)"] = dur;
+    }
+    const payloadWithCoalesce = mergeCoalesceCompositePlaceholders(payload, varNames);
     if (!contractId) return;
     try {
-      const variablesList = Object.entries(payload).map(([key, value]) => ({ key, value: String(value ?? "") }));
+      const variablesList = Object.entries(payloadWithCoalesce).map(([key, value]) => ({
+        key,
+        value: String(value ?? ""),
+      }));
       const data = await updateDraftAndGenerateDocument({
         contractId,
         variablesList,

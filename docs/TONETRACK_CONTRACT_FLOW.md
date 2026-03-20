@@ -1,220 +1,104 @@
-# Flow integrare ToneTrack ↔ Contract Generator (API)
+# ToneTrack ↔ Contract Generator — ce face fiecare parte
 
-Document detaliat: de la contractul primit de la școală până la contract semnat vizibil în ToneTrack, elev/parinte și școală.
-
----
-
-## 1. Roluri și sisteme
-
-| Rol | Unde acționează | Rol în flow |
-|-----|-----------------|-------------|
-| **Superadmin (tu)** | Contract Generator (UI) | Templetizează DOCX, definește variabile, publică template |
-| **Admin școală / Profesor** | ToneTrack | Pornește trimiterea contractului către elev/parinte |
-| **Elev / Parinte** | ToneTrack + Contract Generator (link) | Apasă „Completează contract”, completează, semnează |
-| **ToneTrack (backend)** | Supabase + API | Creează draft/contract, primește webhook, stochează stare, trimite email |
-| **Contract Generator (backend)** | Convex + API REST | Template, generare DOCX, OTP, semnătură, webhook la final |
+Contract Generator (CG) oferă **șabloane DOCX**, **completare + semnare** și **API HTTP pe Convex**. ToneTrack trebuie să orchestreze: cine primește contractul, salvare stare în Supabase, webhook, email.
 
 ---
 
-## 2. Faze pe durata vieții unui contract
+## 1. Ce este deja gata în Contract Generator
+
+| Capabilitate | Unde |
+|--------------|------|
+| Template-uri DOCX + variabile | UI Panou |
+| Chei API per organizație | Panou → Setări organizație → Chei API |
+| ID template vizibil în UI | Panou → Template-uri → „ID API” |
+| Shareable draft + metadata + webhookUrl | API (vezi `API_SHAREABLE_DRAFT.md`) |
+| Webhook `contract.signed` + HMAC opțional | După semnare |
+| Hosting frontend | Vercel + `VITE_CONVEX_URL`; Convex `SITE_URL` = URL public CG |
+
+---
+
+## 2. Ce trebuie implementat în ToneTrack (checklist)
+
+1. **Config**  
+   - URL API Convex (`https://….convex.site`).  
+   - Cheie API (env server-only).  
+   - Același secret ca `INTEGRATION_WEBHOOK_SECRET` din Convex (pentru verificare webhook).
+
+2. **Legătură școală ↔ template**  
+   - În Supabase (sau config): `school_id` → `contract_template_id` (ID din CG).  
+   - Opțional: sync din `GET /api/v1/templates` pentru admin.
+
+3. **Flux parinte / elev — „Completează contractul”**  
+   - Server: `POST …/api/v1/contracts/shareable-draft` cu  
+     `templateId`, `metadata` (ID-uri: `studentId`, `schoolId`, `guardianId` + chei de **prefill** aliniate cu numele variabilelor din șablonul DOCX), `webhookUrl` (URL-ul tău HTTPS).  
+   - Salvează `contractId` + metadata trimisă + status `pending_fill` în Supabase.  
+   - Redirect sau tab nou către `fillLink`.
+
+4. **Webhook**  
+   - Endpoint POST (ex. `/api/webhooks/contract-signed`): verifică HMAC, citește `contractId` + `metadata` (**doar** `studentId`, `schoolId`, `guardianId`, `contractFor`, `hasGuardian` dacă au fost trimise la creare), marchează contract semnat în DB, opțional descarcă DOCX cu `GET …/contract/document-url?id=…`.
+
+5. **Polling (fallback)**  
+   - Dacă webhook eșuează: periodic `GET …/contract?id=<contractId>` până la `status === "SIGNED"`.
+
+6. **UI**  
+   - Elev/parinte: buton + istoric status.  
+   - Școală: listă contracte per elev / per școală.  
+   - Descărcare DOCX (direct din URL API sau fișier salvat în Storage după webhook).
+
+7. **Email**  
+   - După semnare (webhook sau polling): Resend din ToneTrack către elev/parinte / școală.
+
+---
+
+## 3. Flux pe scurt
 
 ```
-[Faza A] Pregătire template     → doar Contract Generator + tu
-[Faza B] Legare școală–template → ToneTrack (date) + eventual API list templates
-[Faza C] Inițiere din ToneTrack → API Contract Generator
-[Faza D] Completare + semnare   → UI Contract Generator (link)
-[Faza E] Finalizare în app      → Webhook sau polling + Supabase + email
+[Faza A] Tu / școala → template în CG → notezi templateId (sau îl pui în TT per școală)
+
+[Faza B] Parinte în TT → „Completează contract”
+         → TT server: POST shareable-draft (metadata + webhookUrl)
+         → salvează contractId în Supabase
+         → browser: fillLink (site CG hostat)
+
+[Faza C] Parinte completează + OTP + semnătură pe CG
+
+[Faza D] CG → POST webhook către TT (contract.signed + metadata)
+         → TT actualizează DB, email, eventual descarcă DOCX
 ```
 
----
-
-## 3. Faza A — Superadmin: de la contractul școlii la template
-
-1. Școala îți trimite contractul (PDF/DOCX negociat).
-2. Transformi documentul în **șablon DOCX** cu placeholders (`{numeElev}`, `{numeParinte}`, …) conform convenției tale sau a școlii.
-3. În **Contract Generator** (UI):
-   - încarci DOCX;
-   - configurezi **variable definitions** (tip: text, dată, semnătură, număr contract, etc.);
-   - salvezi template-ul.
-4. Rezultat: un **`templateId`** (ID Convex) unic per șablon.
-
-**Important:** Numele variabilelor din DOCX trebuie să poată fi mapate (manual sau prin convenție) la câmpuri din ToneTrack la Faza C (pre-fill opțional).
+Alternativ fără pas „completare pe CG”: `POST /api/v1/contracts` cu toate `variables` + `signers` din TT (doar dacă ai deja toate datele în app).
 
 ---
 
-## 4. Faza B — Legătura școală ↔ template (în ToneTrack)
+## 4. Metadata (`studentId`, `schoolId`)
 
-În ToneTrack (date proprii, nu neapărat în Contract Generator):
-
-1. Pentru fiecare **școală** (`school_id`) stochezi:
-   - `contract_template_id` = ID-ul din Contract Generator returnat la listare sau cunoscut după ce l-ai creat;
-   - opțional: `template_label`, `activ`/`inactiv`.
-2. **Superadmin ToneTrack** sau **tu** poți avea un ecran unde selectezi școala și lipești `templateId`.
-
-**API util (Contract Generator):**
-
-- `GET /api/v1/templates` — listă template-uri (cu cheie API).
-- `GET /api/v1/templates/:id` — `variableDefinitions` ca să știi ce câmpuri trebuie completate din ToneTrack.
-
-Fără această legătură, aplicația nu știe ce șablon să deschidă pentru elevul școlii X.
+- **Trimise de ToneTrack** la `shareable-draft`, stocate pe contract în Convex.  
+- **Returnate** în webhook ca `metadata` — ca să știi imediat cărui elev/școli îi apartine evenimentul, fără să mapezi doar după `contractId`.  
+- **Recomandat:** salvează oricum `contractId` în TT la creare; metadata grăbește logica și rapoartele.
 
 ---
 
-## 5. Faza C — Elev/parinte apasă „Completează contract” (ToneTrack)
+## 5. Securitate
 
-### 5.1 Condiții în ToneTrack
-
-- Elevul are cont și este asociat unei școli (enrollment / clasă).
-- Școala are un `contract_template_id` configurat.
-- (Opțional) profilul elevului/parintelui are deja date minime (nume, email pentru semnatar).
-
-### 5.2 Ce face serverul ToneTrack (toate prin API)
-
-**Variantă recomandată pentru „parintele completează tot ca în Contract Generator”:**
-
-1. **Apel:** `POST /api/v1/contracts/shareable-draft`  
-   **Headers:** `Authorization: Bearer <cheie API>` (generată în Contract Generator → Setări organizație)  
-   **Body exemplu:**
-   ```json
-   {
-     "templateId": "<id din Contract Generator>"
-   }
-   ```
-2. **Răspuns:** `{ "contractId": "...", "fillLink": "https://<domeniu-contract-generator>/contract/fill/<token>" }`
-3. ToneTrack **salvează** în Supabase un rând, de exemplu:
-   - `school_id`, `student_id` (sau `profile_id` parinte),
-   - `external_contract_id` = `contractId`,
-   - `status` = `draft_pending_fill`,
-   - `fill_link` (opțional, poate fi regenerat doar dacă păstrezi tokenul — azi API-ul returnează linkul o dată),
-   - `template_id`,
-   - `created_at`.
-
-4. **UI:** redirect sau deschidere în tab nou către `fillLink`.
-
-**Variantă alternativă (totul pre-completat din ToneTrack, fără pasul „fill” pe CG):**
-
-- `POST /api/v1/contracts` cu `variables` + `signers` → primești direct `signingLinks`. Parintele merge direct la semnare. Mai puțin flexibil dacă șablonul cere multe câmpuri pe care nu le ai încă în app.
-
-### 5.3 Metadata și legătura înapoi (recomandat de implementat în API)
-
-Pentru ca la final să știi *cine* a semnat în ToneTrack, la crearea draftului/contractului trimiți (când API-ul va suporta):
-
-- `metadata`: `{ "studentId": "...", "schoolId": "...", "enrollmentId": "..." }`
-- eventual `webhookUrl` per cerere sau fix în env Contract Generator.
-
-Fără metadata, webhook-ul poate trimite doar `contractId` și trebuie să corelezi doar după ce ai salvat `contractId` la pasul C.2 (deja suficient dacă salvezi corect).
+| Aspect | Practica |
+|--------|----------|
+| Cheie API | Doar server ToneTrack (env). |
+| Webhook | HTTPS + verificare `X-Contract-Generator-Signature` cu secret partajat. |
+| fillLink | Token opac, expirare gestionată de CG. |
 
 ---
 
-## 6. Faza D — Completare și semnare (Contract Generator, același flow ca „Generează contract”)
+## 6. Documentație API detaliată
 
-1. Utilizatorul deschide **`fillLink`**.
-2. Parcurge pașii existenți: citire → completare variabile → verificare date → **semnare**.
-3. **OTP** pe email (Resend, configurat în Convex).
-4. **Semnătură** pe canvas; la final contractul devine **SIGNED** în Convex; se regenerează DOCX cu semnătură și număr contract dacă e cazul.
-
-**Nu este nevoie ca ToneTrack să reimplementeze acest UI** dacă acceptați redirect la Contract Generator.
+Endpoint-uri, body-uri, coduri de eroare: **`docs/API_SHAREABLE_DRAFT.md`**.
 
 ---
 
-## 7. Faza E — Contract „identificat” în ToneTrack (elev, parinte, școală)
+## 7. Test webhook fără ToneTrack
 
-### 7.1 Sincronizare status
+`webhookUrl` trebuie să fie **HTTPS**. Variante rapide:
 
-**Opțiunea 1 — Webhook (preferată)**
+- **[webhook.site](https://webhook.site)** (sau similar): copiezi URL-ul unic, îl pui la `webhookUrl` în `POST …/shareable-draft`, apoi completezi și semnezi contractul pe `fillLink`; vezi request-ul, JSON-ul și opțional `X-Contract-Generator-Signature`.
+- **Server local + ngrok / Cloudflare Tunnel**: endpoint care primește POST și loghează **raw body** (string UTF-8) dacă vrei să verifici HMAC cu același secret ca `INTEGRATION_WEBHOOK_SECRET` în Convex — vezi exemplu Node în `API_SHAREABLE_DRAFT.md`.
 
-1. La trecerea în **SIGNED**, Contract Generator face `POST` către URL-ul ToneTrack (ex. `https://app.tonetrack.../api/webhooks/contract-signed`).
-2. **Body exemplu:**
-   ```json
-   {
-     "event": "contract.signed",
-     "contractId": "...",
-     "templateId": "...",
-     "signedAt": 1234567890,
-     "metadata": { "studentId": "...", "schoolId": "..." }
-   }
-   ```
-3. Header secret (ex. `X-Webhook-Signature: HMAC-SHA256`) verificat în ToneTrack.
-4. ToneTrack actualizează rândul din Supabase: `status = signed`, `signed_at`.
-
-**Opțiunea 2 — Polling**
-
-- Job sau la login: `GET /api/v1/contracts/:id` până când `status === "SIGNED"`.
-- Mai simplu la început; întârzieri până la următoarea verificare.
-
-### 7.2 Documentul (DOCX) în aplicație
-
-1. Server ToneTrack: `GET /api/v1/contracts/:id/document-url` → URL temporar descărcare.
-2. Opțional: descarci fișierul și îl pui în **Storage Supabase** pentru link stabil și istoric.
-3. În UI **elev/parinte**: buton „Descarcă contract semnat”.
-4. În UI **școală**: aceeași înregistrare filtrată după `school_id` + listă contracte per elev.
-
-### 7.3 Email
-
-- După webhook (sau după ce polling vede SIGNED), **ToneTrack** trimite email (Resend) către:
-  - emailul contului elev/parinte,
-  - opțional copie la admin școală sau adresă configurată per școală.
-- Conținut: „Contractul a fost semnat” + link către ToneTrack (pagina contractului) sau link direct la download dacă e sigur.
-
----
-
-## 8. Diagramă secvență (rezumat)
-
-```
-[Superadmin CG]     upload template → templateId
-       │
-       ▼
-[ToneTrack DB]      school ↔ templateId
-       │
-       ▼
-[Parinte TT]        click „Completează contract”
-       │
-       ▼
-[ToneTrack API]     POST shareable-draft(templateId)
-       │             salvează contractId + student + school
-       ▼
-[Browser]           redirect → fillLink (Contract Generator)
-       │
-       ▼
-[Contract Generator] completare + OTP + semnătură → SIGNED
-       │
-       ├─► [Webhook] POST ToneTrack → update DB + email
-       └─► (sau ToneTrack polling GET contract)
-```
-
----
-
-## 9. Securitate (API)
-
-| Aspect | Măsură |
-|--------|--------|
-| Apeluri Contract Generator | Cheie API generată în app, doar pe server ToneTrack |
-| Webhook către ToneTrack | Secret HMAC sau token static; verificare semnătură |
-| fillLink / sign links | Token-uri opace, expirare (deja în CG) |
-| document-url | Doar server cu API key; nu expune cheia în browser |
-
----
-
-## 10. Ce lipsește astăzi (checklist implementare)
-
-- [ ] **Metadata + webhook** pe Contract Generator (dacă vrei corelare automată fără doar `contractId`).
-- [ ] **Tabele Supabase** ToneTrack: contract instances + FK la școală/elev.
-- [ ] **Endpoint webhook** în ToneTrack + verificare semnătură.
-- [ ] **UI** parinte: buton + salvare `contractId` după `shareable-draft`.
-- [ ] **UI** școală: listă contracte semnate/pending per elev.
-- [ ] **Email** post-semnare din ToneTrack.
-
----
-
-## 11. Variante de flow (comparatie scurtă)
-
-| Scenariu | API start | Unde completează | Potrivit pentru |
-|----------|-----------|------------------|-----------------|
-| Shareable draft | `shareable-draft` | Contract Generator | Parintele completează multe câmpuri; același UX ca manual |
-| Contract direct | `POST /contracts` | ToneTrack (variabile deja cunoscute) | Puține câmpuri, toate în profil |
-
-Acest document descrie în principal varianta **shareable draft + webhook**, aliniată cu cerința „buton la parinte, apoi același flow ca în Contract Generator”.
-
----
-
-*Ultima actualizare: flow conceptual; endpointurile concrete pot include `metadata`/`webhook` când sunt implementate în API.*
+Nu ai nevoie de altă aplicație: doar URL public HTTPS + același flux API ca pentru ToneTrack.
