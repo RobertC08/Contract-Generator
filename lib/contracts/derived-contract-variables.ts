@@ -15,7 +15,7 @@ function normalizeDateValue(v: unknown): string {
 }
 
 /**
- * Inclusive calendar days from start through end (both ends count), UTC date arithmetic.
+ * Whole days between start and end (end − start), UTC date arithmetic — not inclusive of both endpoints (same day → 0).
  * Returns "" if either date invalid or end before start.
  */
 export function computeContractDurationDays(startRaw: unknown, endRaw: unknown): string {
@@ -35,8 +35,8 @@ export function computeContractDurationDays(startRaw: unknown, endRaw: unknown):
   const s = Date.UTC(ys, ms - 1, ds);
   const e = Date.UTC(ye, me - 1, de);
   if (e < s) return "";
-  const inclusive = Math.floor((e - s) / 86400000) + 1;
-  return String(inclusive);
+  const days = Math.floor((e - s) / 86400000);
+  return String(days);
 }
 
 /** Injects computed contract fields before docxtemplater.render. */

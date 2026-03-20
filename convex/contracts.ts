@@ -158,6 +158,7 @@ export const getFillData = query({
       .collect();
     signers.sort((a, b) => a.signingOrder - b.signingOrder);
     const { variables: _v, ...contractRest } = contract;
+    const im = contract.integrationMetadata ?? {};
     return {
       contract: {
         ...stripIntegrationFields(contractRest as Record<string, unknown>),
@@ -165,6 +166,10 @@ export const getFillData = query({
       },
       template,
       signers,
+      coalesceContext: {
+        contractFor: im.contractFor ?? "",
+        hasGuardian: im.hasGuardian ?? "",
+      },
     };
   },
 });

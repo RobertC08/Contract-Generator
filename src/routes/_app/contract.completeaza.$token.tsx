@@ -350,7 +350,14 @@ function ContractCompleteazaPage() {
       payload["contractDurationDays"] = dur;
       payload["Perioada contract (in zile)"] = dur;
     }
-    const payloadWithCoalesce = mergeCoalesceCompositePlaceholders(payload, varNames);
+    const cc = fillData?.coalesceContext;
+    const payloadWithCoalesce = mergeCoalesceCompositePlaceholders(
+      payload,
+      varNames,
+      cc
+        ? { contractFor: cc.contractFor, hasGuardian: cc.hasGuardian }
+        : undefined
+    );
     if (!contractId) return;
     try {
       const variablesList = Object.entries(payloadWithCoalesce).map(([key, value]) => ({

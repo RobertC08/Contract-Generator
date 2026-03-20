@@ -242,7 +242,8 @@ export const generateDocument = action({
     const signatureVarNames = defs.filter((d: { type: string }) => d.type === "signature").map((d: { name: string }) => d.name);
     const contractNumberVarNames = defs.filter((d: { type: string }) => d.type === "contractNumber").map((d: { name: string }) => d.name);
     const isSigned = useOverride || data.contract.status === "SIGNED";
-    const dataCopy = { ...variables };
+    const integrationMeta = (data.contract.integrationMetadata ?? {}) as Record<string, unknown>;
+    const dataCopy = { ...integrationMeta, ...variables };
     if (!isSigned) {
       for (const name of signatureVarNames) delete dataCopy[name];
       for (const name of contractNumberVarNames) dataCopy[name] = "—";

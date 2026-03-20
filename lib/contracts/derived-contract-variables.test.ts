@@ -6,13 +6,14 @@ import {
 } from "./derived-contract-variables";
 
 describe("computeContractDurationDays", () => {
-  it("returns inclusive day count for ISO range", () => {
-    expect(computeContractDurationDays("2025-01-01", "2025-01-01")).toBe("1");
-    expect(computeContractDurationDays("2025-01-01", "2025-01-03")).toBe("3");
+  it("returns end minus start in whole days (not inclusive)", () => {
+    expect(computeContractDurationDays("2025-01-01", "2025-01-01")).toBe("0");
+    expect(computeContractDurationDays("2025-01-01", "2025-01-03")).toBe("2");
+    expect(computeContractDurationDays("2025-01-01", "2026-01-01")).toBe("365");
   });
 
   it("accepts DD.MM.YYYY", () => {
-    expect(computeContractDurationDays("01.01.2025", "03.01.2025")).toBe("3");
+    expect(computeContractDurationDays("01.01.2025", "03.01.2025")).toBe("2");
   });
 
   it("returns empty when end before start or missing", () => {
@@ -28,8 +29,8 @@ describe("mergeDerivedContractVariables", () => {
       contractStartDate: "2025-06-01",
       contractEndDate: "2025-06-10",
     });
-    expect(m.contractDurationDays).toBe("10");
-    expect(m["Perioada contract (in zile)"]).toBe("10");
+    expect(m.contractDurationDays).toBe("9");
+    expect(m["Perioada contract (in zile)"]).toBe("9");
   });
 
   it("clears duration keys when dates insufficient", () => {
